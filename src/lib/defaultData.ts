@@ -1,0 +1,303 @@
+import { Plot, HeroVideo, ProjectHighlight, Amenity, GalleryItem } from './types';
+
+export const DEFAULT_HERO_VIDEOS: HeroVideo[] = [
+  {
+    id: 'hero-1',
+    title: 'GCR Surya Township Drone Cinematic Overview',
+    video_url: 'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-residential-suburb-with-houses-and-gardens-41525-large.mp4',
+    poster_url: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1920&q=80',
+    badge_text: 'DTCP & RERA Compliant Layout',
+    headline: 'Ultra-Premium Gated Community in Koilakuntla',
+    subheadline: 'Open residential plots developed by Sudheer Developers with 40ft & 33ft BT roads, underground drainage, and immediate spot registration.',
+    is_active: true,
+  },
+  {
+    id: 'hero-2',
+    title: 'Sunset Aerial View of Plotted Development',
+    video_url: 'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-green-residential-neighborhood-41523-large.mp4',
+    poster_url: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1920&q=80',
+    badge_text: 'Prime Highway Growth Corridor',
+    headline: 'Secure Your Family’s Golden Future',
+    subheadline: '100% Vastu compliant plots ready for immediate construction with clear title deeds and premier community amenities.',
+    is_active: false,
+  }
+];
+
+// Generate 52 meticulously planned plots across 4 blocks with East, West, North, South facings
+export const DEFAULT_PLOTS: Plot[] = [
+  // Block A - East Facing (Frontage along 40ft Main Boulevard)
+  { id: 'plot-1', plot_number: '1', area_sq_yards: 266.66, area_cents: 5.51, dimensions: "40' x 60'", facing: 'East', road_width: '40 Feet', status: 'available', is_corner: true, x: 100, y: 140, width: 85, height: 60, notes: 'Prime corner plot opposite Grand Entrance' },
+  { id: 'plot-2', plot_number: '2', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'East', road_width: '40 Feet', status: 'available', is_corner: false, x: 195, y: 140, width: 75, height: 60 },
+  { id: 'plot-3', plot_number: '3', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'East', road_width: '40 Feet', status: 'reserved', is_corner: false, x: 280, y: 140, width: 75, height: 60 },
+  { id: 'plot-4', plot_number: '4', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'East', road_width: '40 Feet', status: 'sold', is_corner: false, x: 365, y: 140, width: 75, height: 60 },
+  { id: 'plot-5', plot_number: '5', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'East', road_width: '40 Feet', status: 'available', is_corner: false, x: 450, y: 140, width: 75, height: 60 },
+  { id: 'plot-6', plot_number: '6', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'East', road_width: '40 Feet', status: 'available', is_corner: false, x: 535, y: 140, width: 75, height: 60 },
+  { id: 'plot-7', plot_number: '7', area_sq_yards: 266.66, area_cents: 5.51, dimensions: "40' x 60'", facing: 'East', road_width: '40 Feet', status: 'sold', is_corner: true, x: 620, y: 140, width: 85, height: 60, notes: 'Corner plot adjacent to North-East Cross Road' },
+
+  // Block A - West Facing (Back-to-back with 1-7)
+  { id: 'plot-8', plot_number: '8', area_sq_yards: 266.66, area_cents: 5.51, dimensions: "40' x 60'", facing: 'West', road_width: '33 Feet', status: 'available', is_corner: true, x: 100, y: 210, width: 85, height: 60 },
+  { id: 'plot-9', plot_number: '9', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'West', road_width: '33 Feet', status: 'available', is_corner: false, x: 195, y: 210, width: 75, height: 60 },
+  { id: 'plot-10', plot_number: '10', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'West', road_width: '33 Feet', status: 'sold', is_corner: false, x: 280, y: 210, width: 75, height: 60 },
+  { id: 'plot-11', plot_number: '11', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'West', road_width: '33 Feet', status: 'available', is_corner: false, x: 365, y: 210, width: 75, height: 60 },
+  { id: 'plot-12', plot_number: '12', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'West', road_width: '33 Feet', status: 'available', is_corner: false, x: 450, y: 210, width: 75, height: 60 },
+  { id: 'plot-13', plot_number: '13', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'West', road_width: '33 Feet', status: 'reserved', is_corner: false, x: 535, y: 210, width: 75, height: 60 },
+  { id: 'plot-14', plot_number: '14', area_sq_yards: 266.66, area_cents: 5.51, dimensions: "40' x 60'", facing: 'West', road_width: '33 Feet', status: 'available', is_corner: true, x: 620, y: 210, width: 85, height: 60 },
+
+  // Block B - East Facing along Road No. 1
+  { id: 'plot-15', plot_number: '15', area_sq_yards: 166.66, area_cents: 3.44, dimensions: "33' x 45'", facing: 'East', road_width: '33 Feet', status: 'available', is_corner: true, x: 100, y: 320, width: 85, height: 55 },
+  { id: 'plot-16', plot_number: '16', area_sq_yards: 166.66, area_cents: 3.44, dimensions: "33' x 45'", facing: 'East', road_width: '33 Feet', status: 'available', is_corner: false, x: 195, y: 320, width: 75, height: 55 },
+  { id: 'plot-17', plot_number: '17', area_sq_yards: 166.66, area_cents: 3.44, dimensions: "33' x 45'", facing: 'East', road_width: '33 Feet', status: 'sold', is_corner: false, x: 280, y: 320, width: 75, height: 55 },
+  { id: 'plot-18', plot_number: '18', area_sq_yards: 166.66, area_cents: 3.44, dimensions: "33' x 45'", facing: 'East', road_width: '33 Feet', status: 'available', is_corner: false, x: 365, y: 320, width: 75, height: 55 },
+  { id: 'plot-19', plot_number: '19', area_sq_yards: 166.66, area_cents: 3.44, dimensions: "33' x 45'", facing: 'East', road_width: '33 Feet', status: 'reserved', is_corner: false, x: 450, y: 320, width: 75, height: 55 },
+  { id: 'plot-20', plot_number: '20', area_sq_yards: 166.66, area_cents: 3.44, dimensions: "33' x 45'", facing: 'East', road_width: '33 Feet', status: 'available', is_corner: false, x: 535, y: 320, width: 75, height: 55 },
+  { id: 'plot-21', plot_number: '21', area_sq_yards: 166.66, area_cents: 3.44, dimensions: "33' x 45'", facing: 'East', road_width: '33 Feet', status: 'available', is_corner: true, x: 620, y: 320, width: 85, height: 55 },
+
+  // Block B - West Facing along Road No. 1
+  { id: 'plot-22', plot_number: '22', area_sq_yards: 166.66, area_cents: 3.44, dimensions: "33' x 45'", facing: 'West', road_width: '33 Feet', status: 'sold', is_corner: true, x: 100, y: 385, width: 85, height: 55 },
+  { id: 'plot-23', plot_number: '23', area_sq_yards: 166.66, area_cents: 3.44, dimensions: "33' x 45'", facing: 'West', road_width: '33 Feet', status: 'available', is_corner: false, x: 195, y: 385, width: 75, height: 55 },
+  { id: 'plot-24', plot_number: '24', area_sq_yards: 166.66, area_cents: 3.44, dimensions: "33' x 45'", facing: 'West', road_width: '33 Feet', status: 'available', is_corner: false, x: 280, y: 385, width: 75, height: 55 },
+  { id: 'plot-25', plot_number: '25', area_sq_yards: 166.66, area_cents: 3.44, dimensions: "33' x 45'", facing: 'West', road_width: '33 Feet', status: 'available', is_corner: false, x: 365, y: 385, width: 75, height: 55 },
+  { id: 'plot-26', plot_number: '26', area_sq_yards: 166.66, area_cents: 3.44, dimensions: "33' x 45'", facing: 'West', road_width: '33 Feet', status: 'sold', is_corner: false, x: 450, y: 385, width: 75, height: 55 },
+  { id: 'plot-27', plot_number: '27', area_sq_yards: 166.66, area_cents: 3.44, dimensions: "33' x 45'", facing: 'West', road_width: '33 Feet', status: 'available', is_corner: false, x: 535, y: 385, width: 75, height: 55 },
+  { id: 'plot-28', plot_number: '28', area_sq_yards: 166.66, area_cents: 3.44, dimensions: "33' x 45'", facing: 'West', road_width: '33 Feet', status: 'available', is_corner: true, x: 620, y: 385, width: 85, height: 55 },
+
+  // Block C - Facing Central Park & Green Zone
+  { id: 'plot-29', plot_number: '29', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'North', road_width: '33 Feet', status: 'available', is_corner: true, x: 100, y: 495, width: 85, height: 60, notes: 'Direct park view' },
+  { id: 'plot-30', plot_number: '30', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'North', road_width: '33 Feet', status: 'reserved', is_corner: false, x: 195, y: 495, width: 75, height: 60, notes: 'Direct park view' },
+  { id: 'plot-31', plot_number: '31', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'North', road_width: '33 Feet', status: 'available', is_corner: false, x: 280, y: 495, width: 75, height: 60 },
+  { id: 'plot-32', plot_number: '32', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'North', road_width: '33 Feet', status: 'sold', is_corner: false, x: 365, y: 495, width: 75, height: 60 },
+  { id: 'plot-33', plot_number: '33', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'North', road_width: '33 Feet', status: 'available', is_corner: false, x: 450, y: 495, width: 75, height: 60 },
+  { id: 'plot-34', plot_number: '34', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'North', road_width: '33 Feet', status: 'available', is_corner: false, x: 535, y: 495, width: 75, height: 60 },
+  { id: 'plot-35', plot_number: '35', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'North', road_width: '33 Feet', status: 'available', is_corner: true, x: 620, y: 495, width: 85, height: 60 },
+
+  // Block C - South Facing
+  { id: 'plot-36', plot_number: '36', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'South', road_width: '33 Feet', status: 'sold', is_corner: true, x: 100, y: 565, width: 85, height: 60 },
+  { id: 'plot-37', plot_number: '37', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'South', road_width: '33 Feet', status: 'available', is_corner: false, x: 195, y: 565, width: 75, height: 60 },
+  { id: 'plot-38', plot_number: '38', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'South', road_width: '33 Feet', status: 'available', is_corner: false, x: 280, y: 565, width: 75, height: 60 },
+  { id: 'plot-39', plot_number: '39', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'South', road_width: '33 Feet', status: 'available', is_corner: false, x: 365, y: 565, width: 75, height: 60 },
+  { id: 'plot-40', plot_number: '40', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'South', road_width: '33 Feet', status: 'reserved', is_corner: false, x: 450, y: 565, width: 75, height: 60 },
+  { id: 'plot-41', plot_number: '41', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'South', road_width: '33 Feet', status: 'available', is_corner: false, x: 535, y: 565, width: 75, height: 60 },
+  { id: 'plot-42', plot_number: '42', area_sq_yards: 200.00, area_cents: 4.13, dimensions: "36' x 50'", facing: 'South', road_width: '33 Feet', status: 'available', is_corner: true, x: 620, y: 565, width: 85, height: 60 },
+
+  // Block D - Premium East & North plots (East sector 760px to 1050px)
+  { id: 'plot-43', plot_number: '43', area_sq_yards: 150.00, area_cents: 3.10, dimensions: "30' x 45'", facing: 'East', road_width: '33 Feet', status: 'available', is_corner: true, x: 770, y: 140, width: 75, height: 50 },
+  { id: 'plot-44', plot_number: '44', area_sq_yards: 150.00, area_cents: 3.10, dimensions: "30' x 45'", facing: 'East', road_width: '33 Feet', status: 'available', is_corner: false, x: 855, y: 140, width: 75, height: 50 },
+  { id: 'plot-45', plot_number: '45', area_sq_yards: 150.00, area_cents: 3.10, dimensions: "30' x 45'", facing: 'East', road_width: '33 Feet', status: 'sold', is_corner: false, x: 940, y: 140, width: 75, height: 50 },
+  { id: 'plot-46', plot_number: '46', area_sq_yards: 150.00, area_cents: 3.10, dimensions: "30' x 45'", facing: 'East', road_width: '33 Feet', status: 'available', is_corner: true, x: 1025, y: 140, width: 80, height: 50 },
+
+  { id: 'plot-47', plot_number: '47', area_sq_yards: 150.00, area_cents: 3.10, dimensions: "30' x 45'", facing: 'West', road_width: '33 Feet', status: 'available', is_corner: true, x: 770, y: 200, width: 75, height: 50 },
+  { id: 'plot-48', plot_number: '48', area_sq_yards: 150.00, area_cents: 3.10, dimensions: "30' x 45'", facing: 'West', road_width: '33 Feet', status: 'reserved', is_corner: false, x: 855, y: 200, width: 75, height: 50 },
+  { id: 'plot-49', plot_number: '49', area_sq_yards: 150.00, area_cents: 3.10, dimensions: "30' x 45'", facing: 'West', road_width: '33 Feet', status: 'available', is_corner: false, x: 940, y: 200, width: 75, height: 50 },
+  { id: 'plot-50', plot_number: '50', area_sq_yards: 150.00, area_cents: 3.10, dimensions: "30' x 45'", facing: 'West', road_width: '33 Feet', status: 'available', is_corner: true, x: 1025, y: 200, width: 80, height: 50 },
+
+  { id: 'plot-51', plot_number: '51', area_sq_yards: 300.00, area_cents: 6.20, dimensions: "45' x 60'", facing: 'East', road_width: '40 Feet', status: 'available', is_corner: true, x: 770, y: 495, width: 160, height: 60, notes: 'Grand Villa Plot with wide East frontage' },
+  { id: 'plot-52', plot_number: '52', area_sq_yards: 300.00, area_cents: 6.20, dimensions: "45' x 60'", facing: 'North', road_width: '40 Feet', status: 'available', is_corner: true, x: 945, y: 495, width: 160, height: 60, notes: 'Grand Villa Plot corner orientation' },
+];
+
+export const DEFAULT_HIGHLIGHTS: ProjectHighlight[] = [
+  {
+    id: 'hl-1',
+    title: '40 & 33 Ft Blacktop Roads',
+    description: 'Robust asphalt roads designed for heavy vehicular longevity with paved curbs and side walking tracks.',
+    metric: '40 & 33 Ft',
+    metric_label: 'BT Road Network',
+    icon_name: 'Road',
+    order_index: 1,
+  },
+  {
+    id: 'hl-2',
+    title: '100% Clear Legal Title',
+    description: '100% undisputed land title, verified by senior legal counsels, ready for immediate sub-registrar registration.',
+    metric: '100%',
+    metric_label: 'Title Guarantee',
+    icon_name: 'ShieldCheck',
+    order_index: 2,
+  },
+  {
+    id: 'hl-3',
+    title: 'Strict Vastu Compliant',
+    description: 'Every single residential plot demarcated according to ancient Vastu Shastra principles for prosperity and wellness.',
+    metric: '100%',
+    metric_label: 'Vastu Compliant',
+    icon_name: 'Compass',
+    order_index: 3,
+  },
+  {
+    id: 'hl-4',
+    title: 'Concealed Underground Drainage',
+    description: 'Engineered underground sewer lines with chamber manholes, ensuring clean surroundings and zero flooding.',
+    metric: 'UGD',
+    metric_label: 'Concealed System',
+    icon_name: 'Droplets',
+    order_index: 4,
+  },
+  {
+    id: 'hl-5',
+    title: 'Electricity Grid with Streetlights',
+    description: 'Independent transformer, high-grade cable networks, and bright LED solar street lamps throughout all streets.',
+    metric: '24x7',
+    metric_label: 'Power Grid',
+    icon_name: 'Zap',
+    order_index: 5,
+  },
+  {
+    id: 'hl-6',
+    title: 'Avenue Greenery & Parks',
+    description: 'Flourishing avenue trees, flower beds, and open air recreation zones fostering a clean, oxygen-rich ecosystem.',
+    metric: 'Lush',
+    metric_label: 'Eco Community',
+    icon_name: 'Trees',
+    order_index: 6,
+  },
+];
+
+export const DEFAULT_AMENITIES: Amenity[] = [
+  {
+    id: 'am-1',
+    title: 'Grand Entrance Gateway',
+    description: 'Signature architectural archway welcoming residents and guests with security check-post & boom barrier.',
+    icon_name: 'DoorOpen',
+    image_url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
+    category: 'Security & Grandeur',
+    order_index: 1,
+  },
+  {
+    id: 'am-2',
+    title: '40ft & 33ft Wide BT Roads',
+    description: 'Smooth, durable blacktop roads engineered with storm water side gutters and boundary curbs.',
+    icon_name: 'Route',
+    image_url: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80',
+    category: 'Infrastructure',
+    order_index: 2,
+  },
+  {
+    id: 'am-3',
+    title: 'Underground Drainage System',
+    description: 'State-of-the-art closed drainage channels eliminating standing water and ensuring optimum hygiene.',
+    icon_name: 'Pipette',
+    image_url: 'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&w=800&q=80',
+    category: 'Infrastructure',
+    order_index: 3,
+  },
+  {
+    id: 'am-4',
+    title: '24/7 Gated Security & CCTV',
+    description: 'Complete perimeter compound fencing, 24-hour manned guard post, and strategic CCTV surveillance cameras.',
+    icon_name: 'ShieldCheck',
+    image_url: 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=800&q=80',
+    category: 'Security & Grandeur',
+    order_index: 4,
+  },
+  {
+    id: 'am-5',
+    title: 'Landscaped Parks & Walking Trails',
+    description: 'Designer open green parks with manicured lawns, seating benches, and shaded jogging pathways.',
+    icon_name: 'Trees',
+    image_url: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80',
+    category: 'Recreation & Nature',
+    order_index: 5,
+  },
+  {
+    id: 'am-6',
+    title: 'Overhead Tank & Water Connection',
+    description: 'Dedicated water pipeline terminal provided to every single plot boundary from central water storage.',
+    icon_name: 'Droplets',
+    image_url: 'https://images.unsplash.com/photo-1541888946425-d0fbb186c5f7?auto=format&fit=crop&w=800&q=80',
+    category: 'Infrastructure',
+    order_index: 6,
+  },
+  {
+    id: 'am-7',
+    title: 'Children Play Zone',
+    description: 'Equipped with child-safe slides, swings, and activity spaces within protected green park areas.',
+    icon_name: 'Smile',
+    image_url: 'https://images.unsplash.com/photo-1566737236500-c8ac43014a67?auto=format&fit=crop&w=800&q=80',
+    category: 'Recreation & Nature',
+    order_index: 7,
+  },
+  {
+    id: 'am-8',
+    title: 'Immediate Spot Registration',
+    description: 'All approvals in place. Handover of clear documentation and spot registration assistance at sub-registrar office.',
+    icon_name: 'FileCheck',
+    image_url: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=800&q=80',
+    category: 'Legal & Investment',
+    order_index: 8,
+  },
+];
+
+export const DEFAULT_GALLERY: GalleryItem[] = [
+  {
+    id: 'gal-1',
+    title: 'Aerial View of Township Sector',
+    category: 'Drone Views',
+    media_type: 'image',
+    media_url: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=80',
+    thumbnail_url: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=400&q=80',
+    order_index: 1,
+  },
+  {
+    id: 'gal-2',
+    title: 'Township Drone Flyover Preview',
+    category: 'Drone Views',
+    media_type: 'video',
+    media_url: 'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-residential-suburb-with-houses-and-gardens-41525-large.mp4',
+    thumbnail_url: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=400&q=80',
+    order_index: 2,
+  },
+  {
+    id: 'gal-3',
+    title: 'Grand Entrance Gateway Elevation',
+    category: 'Entrance',
+    media_type: 'image',
+    media_url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
+    thumbnail_url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=400&q=80',
+    order_index: 3,
+  },
+  {
+    id: 'gal-4',
+    title: '40-Feet Wide Main Asphalt Road',
+    category: 'Ground Progress',
+    media_type: 'image',
+    media_url: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=80',
+    thumbnail_url: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=400&q=80',
+    order_index: 4,
+  },
+  {
+    id: 'gal-5',
+    title: 'Landscaped Central Park & Recreation Area',
+    category: 'Amenities',
+    media_type: 'image',
+    media_url: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80',
+    thumbnail_url: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=400&q=80',
+    order_index: 5,
+  },
+  {
+    id: 'gal-6',
+    title: 'Underground Drainage Infrastructure',
+    category: 'Ground Progress',
+    media_type: 'image',
+    media_url: 'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&w=1200&q=80',
+    thumbnail_url: 'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&w=400&q=80',
+    order_index: 6,
+  },
+  {
+    id: 'gal-7',
+    title: 'Master Layout Survey & Plot Demarcation',
+    category: 'Master Plan',
+    media_type: 'image',
+    media_url: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1200&q=80',
+    thumbnail_url: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=400&q=80',
+    order_index: 7,
+  },
+  {
+    id: 'gal-8',
+    title: 'Panoramic Sunset Aerial View',
+    category: 'Drone Views',
+    media_type: 'video',
+    media_url: 'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-green-residential-neighborhood-41523-large.mp4',
+    thumbnail_url: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=400&q=80',
+    order_index: 8,
+  }
+];
+

@@ -1,0 +1,182 @@
+-- ==========================================================
+-- GCR SURYA TOWNSHIP, KOILAKUNTLA - SUPABASE DATABASE SCHEMA
+-- Developer: SUDHEER DEVELOPERS (G. Sudheer Reddy)
+-- ==========================================================
+
+-- Enable pgcrypto for UUID generation
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- 1. HERO VIDEOS TABLE
+CREATE TABLE IF NOT EXISTS public.hero_videos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    video_url TEXT NOT NULL,
+    poster_url TEXT,
+    badge_text TEXT DEFAULT 'RERA & DTCP Norms Compliant',
+    headline TEXT DEFAULT 'Luxury Gated Community Township in Koilakuntla',
+    subheadline TEXT DEFAULT 'Prime open residential plots with 40ft & 33ft BT roads, underground drainage, and immediate spot registration.',
+    is_active BOOLEAN DEFAULT false,
+    order_index INT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Ensure only one video is active at a time or query ORDER BY is_active DESC, updated_at DESC LIMIT 1
+CREATE INDEX IF NOT EXISTS idx_hero_videos_active ON public.hero_videos(is_active);
+
+-- 2. PLOTS INVENTORY TABLE
+CREATE TABLE IF NOT EXISTS public.plots (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    plot_number VARCHAR(30) UNIQUE NOT NULL,
+    area_sq_yards NUMERIC(10, 2) NOT NULL,
+    area_cents NUMERIC(10, 2) NOT NULL,
+    dimensions VARCHAR(50) NOT NULL,
+    facing VARCHAR(30) NOT NULL, -- 'East', 'West', 'North', 'South', 'North-East', 'Corner'
+    road_width VARCHAR(30) DEFAULT '40 Feet',
+    status VARCHAR(20) NOT NULL DEFAULT 'available', -- 'available', 'reserved', 'sold'
+    price_per_sq_yd NUMERIC(12, 2),
+    total_price NUMERIC(14, 2),
+    is_corner BOOLEAN DEFAULT false,
+    boundary_svg TEXT,
+    coordinates JSONB,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_plots_status ON public.plots(status);
+CREATE INDEX IF NOT EXISTS idx_plots_number ON public.plots(plot_number);
+
+-- 3. PROJECT HIGHLIGHTS TABLE
+CREATE TABLE IF NOT EXISTS public.project_highlights (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    metric TEXT,
+    metric_label TEXT,
+    icon_name TEXT NOT NULL,
+    order_index INT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 4. AMENITIES TABLE
+CREATE TABLE IF NOT EXISTS public.amenities (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    icon_name TEXT NOT NULL,
+    image_url TEXT,
+    category TEXT DEFAULT 'Infrastructure',
+    order_index INT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 5. GALLERY ITEMS TABLE
+CREATE TABLE IF NOT EXISTS public.gallery_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    category TEXT NOT NULL, -- 'Drone Views', 'Ground Progress', 'Master Plan', 'Amenities', 'Entrance'
+    media_type TEXT NOT NULL DEFAULT 'image', -- 'image', 'video'
+    media_url TEXT NOT NULL,
+    thumbnail_url TEXT,
+    order_index INT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 6. SITE VISITS TABLE
+CREATE TABLE IF NOT EXISTS public.site_visits (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    full_name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    email TEXT,
+    preferred_date DATE NOT NULL,
+    preferred_time_slot TEXT NOT NULL,
+    interested_plot_number TEXT,
+    pickup_location TEXT,
+    notes TEXT,
+    status TEXT DEFAULT 'pending', -- 'pending', 'confirmed', 'completed', 'cancelled'
+    admin_notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 7. ENQUIRIES TABLE
+CREATE TABLE IF NOT EXISTS public.enquiries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    full_name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    email TEXT,
+    subject TEXT,
+    message TEXT NOT NULL,
+    status TEXT DEFAULT 'new', -- 'new', 'in_progress', 'resolved'
+    admin_notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 8. PROJECT SETTINGS TABLE
+CREATE TABLE IF NOT EXISTS public.project_settings (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- ==========================================================
+-- ROW LEVEL SECURITY (RLS) POLICIES
+-- ==========================================================
+ALTER TABLE public.hero_videos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.plots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.project_highlights ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.amenities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.gallery_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.site_visits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.enquiries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.project_settings ENABLE ROW LEVEL SECURITY;
+
+-- PUBLIC READ POLICIES (Anyone can read public marketing content)
+CREATE POLICY "Public can read active hero videos" ON public.hero_videos FOR SELECT USING (true);
+CREATE POLICY "Public can read plots inventory" ON public.plots FOR SELECT USING (true);
+CREATE POLICY "Public can read highlights" ON public.project_highlights FOR SELECT USING (true);
+CREATE POLICY "Public can read amenities" ON public.amenities FOR SELECT USING (true);
+CREATE POLICY "Public can read gallery" ON public.gallery_items FOR SELECT USING (true);
+CREATE POLICY "Public can read project settings" ON public.project_settings FOR SELECT USING (true);
+
+-- PUBLIC INSERT POLICIES (Visitors can submit site visits and enquiries)
+CREATE POLICY "Public can insert site visits" ON public.site_visits FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public can insert enquiries" ON public.enquiries FOR INSERT WITH CHECK (true);
+
+-- AUTHENTICATED / SERVICE ROLE POLICIES (Admins can do everything)
+CREATE POLICY "Admins full access to hero videos" ON public.hero_videos FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
+CREATE POLICY "Admins full access to plots" ON public.plots FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
+CREATE POLICY "Admins full access to highlights" ON public.project_highlights FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
+CREATE POLICY "Admins full access to amenities" ON public.amenities FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
+CREATE POLICY "Admins full access to gallery" ON public.gallery_items FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
+CREATE POLICY "Admins full access to site visits" ON public.site_visits FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
+CREATE POLICY "Admins full access to enquiries" ON public.enquiries FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
+CREATE POLICY "Admins full access to project settings" ON public.project_settings FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
+
+-- STORAGE BUCKETS SETUP
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('township-media', 'township-media', true)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "Public Access Township Media" 
+ON storage.objects FOR SELECT 
+USING (bucket_id = 'township-media');
+
+CREATE POLICY "Authenticated Upload Township Media" 
+ON storage.objects FOR INSERT 
+WITH CHECK (bucket_id = 'township-media' AND (auth.role() = 'authenticated' OR auth.role() = 'anon'));
+
+CREATE POLICY "Authenticated Update Township Media" 
+ON storage.objects FOR UPDATE 
+USING (bucket_id = 'township-media');
+
+CREATE POLICY "Authenticated Delete Township Media" 
+ON storage.objects FOR DELETE 
+USING (bucket_id = 'township-media');
+
+-- ENABLE SUPABASE REALTIME ON PLOTS & HERO VIDEOS
+ALTER PUBLICATION supabase_realtime ADD TABLE public.plots;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.hero_videos;
+
