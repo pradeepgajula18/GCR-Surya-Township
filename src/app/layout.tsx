@@ -4,7 +4,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import FloatingActions from '@/components/FloatingActions';
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://gcrsuryatownship.com';
+const siteUrl = 'https://suryatownship.vercel.app';
 
 export const viewport: Viewport = {
   themeColor: '#0B3064',
@@ -28,15 +28,20 @@ export const metadata: Metadata = {
   ],
   generator: 'Next.js',
   keywords: [
+    'suryatownship.vercel.app',
+    'Surya Township',
+    'Surya Township Koilakuntla',
     'GCR Surya Township',
     'GCR Surya Township Koilakuntla',
     'Sudheer Developers',
+    'Sudheer Developers Koilakuntla',
     'G. Sudheer Reddy',
+    'G Sudheer Reddy Koilakuntla',
     'Plots in Koilakuntla',
     'Open plots in Koilakuntla',
+    'Plots for sale in Koilakuntla',
     'Residential plots in Koilakuntla Andhra Pradesh',
     'Koilakuntla real estate',
-    'Plots for sale in Koilakuntla',
     'Gated community plots Nandyal district',
     'DTCP layout Koilakuntla',
     'Clear title plots Koilakuntla',
@@ -62,8 +67,17 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/images/gcr-surya-logo.jpg', sizes: '32x32', type: 'image/jpeg' },
+    ],
+    apple: [
+      { url: '/images/gcr-surya-logo.jpg', sizes: '180x180', type: 'image/jpeg' },
+    ],
+  },
   alternates: {
-    canonical: '/',
+    canonical: siteUrl,
   },
   openGraph: {
     title: 'GCR Surya Township™ | Ultra-Premium Residential Plots in Koilakuntla',
@@ -106,6 +120,7 @@ const jsonLd = {
       '@id': `${siteUrl}/#organization`,
       name: 'GCR SURYA TOWNSHIP',
       alternateName: [
+        'Surya Township',
         'GCR Surya Township Koilakuntla',
         'Sudheer Developers',
         'G. Sudheer Reddy Township',
@@ -213,6 +228,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

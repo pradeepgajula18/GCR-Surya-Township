@@ -9,23 +9,18 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-  }
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
+    },
+  },
 });
 
 // Storage Bucket constant
 export const TOWNSHIP_BUCKET = 'township-media';
 
-// Local storage key helpers for seamless fallback
-const STORAGE_KEYS = {
-  HERO_VIDEOS: 'gcr_surya_hero_videos',
-  PLOTS: 'gcr_surya_plots',
-  SITE_VISITS: 'gcr_surya_site_visits',
-  ENQUIRIES: 'gcr_surya_enquiries',
-  GALLERY: 'gcr_surya_gallery',
-  SETTINGS: 'gcr_surya_settings',
-};
-
-// ---------------- HERO VIDEOS ----------------
+// ---------------- HERO VIDEOS (PURE SUPABASE SYNC) ----------------
 export async function getHeroVideos(): Promise<HeroVideo[]> {
   try {
     const { data, error } = await supabase
@@ -37,21 +32,14 @@ export async function getHeroVideos(): Promise<HeroVideo[]> {
     if (!error && data && data.length > 0) {
       return data as HeroVideo[];
     }
+    if (error) {
+      console.warn('Supabase hero_videos query warning:', error.message);
+    }
   } catch (err) {
-    console.warn('Supabase hero_videos query error, using local fallback:', err);
+    console.error('Supabase hero_videos fetch error:', err);
   }
 
-  // Client-side local storage fallback
-  if (typeof window !== 'undefined') {
-    const cached = localStorage.getItem(STORAGE_KEYS.HERO_VIDEOS);
-    if (cached) {
-      try {
-        return JSON.parse(cached);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  }
+  // Fallback to initial seeds only if database table is completely unseeded
   return DEFAULT_HERO_VIDEOS;
 }
 
@@ -62,92 +50,75 @@ export async function getActiveHeroVideo(): Promise<HeroVideo> {
 }
 
 export async function saveHeroVideo(video: Partial<HeroVideo>): Promise<HeroVideo> {
-  // If activating, deactivate others
+  if (!video.video_url || video.video_url.trim() === '') {
+    throw new Error('Video URL or uploaded media file is required.');
+  }
+
+  // Prevent local blob URLs from ever being saved to the database
+  if (video.video_url.startsWith('blob:')) {
+    throw new Error('Cannot save temporary browser blob URL. Please upload the file through Supabase Storage or enter a valid public video URL.');
+  }
+
+  // If activating this video, deactivate all others first in Supabase
   if (video.is_active) {
     try {
-      await supabase.from('hero_videos').update({ is_active: false }).neq('id', video.id || 'none');
+      await supabase
+        .from('hero_videos')
+        .update({ is_active: false })
+        .neq('id', video.id || '00000000-0000-0000-0000-000000000000');
     } catch (e) {
-      console.warn('Deactivating others failed in remote DB', e);
+      console.warn('Deactivating other videos error:', e);
     }
   }
 
-  try {
-    if (video.id && !video.id.startsWith('hero-')) {
-      const { data, error } = await supabase
-        .from('hero_videos')
-        .upsert({ ...video, updated_at: new Date().toISOString() })
-        .select()
-        .single();
-      if (!error && data) return data as HeroVideo;
-    } else {
-      const { data, error } = await supabase
-        .from('hero_videos')
-        .insert([{ ...video, updated_at: new Date().toISOString() }])
-        .select()
-        .single();
-      if (!error && data) return data as HeroVideo;
+  const payload = {
+    title: video.title || 'Township Drone Cinematic',
+    video_url: video.video_url,
+    poster_url: video.poster_url || '',
+    badge_text: video.badge_text || 'DTCP & RERA Compliant Plotted Venture',
+    headline: video.headline || 'GCR SURYA TOWNSHIP',
+    subheadline: video.subheadline || 'Ultra-Premium Gated Community Residential Plots in Koilakuntla, Andhra Pradesh.',
+    is_active: video.is_active ?? true,
+    updated_at: new Date().toISOString(),
+  };
+
+  // If valid UUID exists, update
+  if (video.id && !video.id.startsWith('hero-')) {
+    const { data, error } = await supabase
+      .from('hero_videos')
+      .update(payload)
+      .eq('id', video.id)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to update hero video in Supabase: ${error.message}`);
     }
-  } catch (e) {
-    console.warn('Remote save failed, falling back to local store', e);
+    return data as HeroVideo;
   }
 
-  // Fallback to local storage
-  if (typeof window !== 'undefined') {
-    const all = await getHeroVideos();
-    const updatedId = video.id || `hero-${Date.now()}`;
-    const newVideo: HeroVideo = {
-      id: updatedId,
-      title: video.title || 'Township Cinematic Video',
-      video_url: video.video_url || '',
-      poster_url: video.poster_url || '',
-      badge_text: video.badge_text || 'DTCP & RERA Compliant Layout',
-      headline: video.headline || 'Ultra-Premium Gated Community in Koilakuntla',
-      subheadline: video.subheadline || '40ft & 33ft BT roads, underground drainage, and spot registration.',
-      is_active: video.is_active ?? true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+  // Insert new record into Supabase
+  const { data, error } = await supabase
+    .from('hero_videos')
+    .insert([payload])
+    .select()
+    .single();
 
-    let updatedList = all.map((v) => {
-      if (newVideo.is_active) {
-        return v.id === updatedId ? newVideo : { ...v, is_active: false };
-      }
-      return v.id === updatedId ? newVideo : v;
-    });
-
-    if (!updatedList.some((v) => v.id === updatedId)) {
-      if (newVideo.is_active) {
-        updatedList = updatedList.map((v) => ({ ...v, is_active: false }));
-      }
-      updatedList.unshift(newVideo);
-    }
-
-    localStorage.setItem(STORAGE_KEYS.HERO_VIDEOS, JSON.stringify(updatedList));
-    return newVideo;
+  if (error) {
+    throw new Error(`Failed to insert hero video in Supabase: ${error.message}`);
   }
-
-  return { ...DEFAULT_HERO_VIDEOS[0], ...video } as HeroVideo;
+  return data as HeroVideo;
 }
 
 export async function deleteHeroVideo(id: string): Promise<boolean> {
-  try {
-    await supabase.from('hero_videos').delete().eq('id', id);
-  } catch (e) {
-    console.warn('Remote delete failed', e);
-  }
-
-  if (typeof window !== 'undefined') {
-    const all = await getHeroVideos();
-    const filtered = all.filter((v) => v.id !== id);
-    if (filtered.length > 0 && !filtered.some((v) => v.is_active)) {
-      filtered[0].is_active = true;
-    }
-    localStorage.setItem(STORAGE_KEYS.HERO_VIDEOS, JSON.stringify(filtered));
+  const { error } = await supabase.from('hero_videos').delete().eq('id', id);
+  if (error) {
+    throw new Error(`Failed to delete hero video from Supabase: ${error.message}`);
   }
   return true;
 }
 
-// ---------------- PLOTS INVENTORY ----------------
+// ---------------- PLOTS INVENTORY & LAYOUT MAP (PURE SUPABASE SYNC) ----------------
 export async function getPlots(): Promise<Plot[]> {
   try {
     const { data, error } = await supabase
@@ -156,98 +127,106 @@ export async function getPlots(): Promise<Plot[]> {
       .order('plot_number', { ascending: true });
 
     if (!error && data && data.length > 0) {
-      // Merge with coordinate metadata if needed
       return data.map((remotePlot) => {
-        const defaultMatch = DEFAULT_PLOTS.find((p) => p.plot_number === remotePlot.plot_number);
+        const defaultMatch = DEFAULT_PLOTS.find((p) => String(p.plot_number) === String(remotePlot.plot_number));
         return {
           ...defaultMatch,
           ...remotePlot,
-          x: remotePlot.x || defaultMatch?.x || 100,
-          y: remotePlot.y || defaultMatch?.y || 100,
-          width: remotePlot.width || defaultMatch?.width || 75,
-          height: remotePlot.height || defaultMatch?.height || 55,
+          x: remotePlot.x !== undefined && remotePlot.x !== null ? Number(remotePlot.x) : (defaultMatch?.x || 100),
+          y: remotePlot.y !== undefined && remotePlot.y !== null ? Number(remotePlot.y) : (defaultMatch?.y || 100),
+          width: remotePlot.width !== undefined && remotePlot.width !== null ? Number(remotePlot.width) : (defaultMatch?.width || 75),
+          height: remotePlot.height !== undefined && remotePlot.height !== null ? Number(remotePlot.height) : (defaultMatch?.height || 55),
         };
       }) as Plot[];
     }
+
+    if (error) {
+      console.warn('Supabase plots query warning:', error.message);
+    }
   } catch (err) {
-    console.warn('Supabase plots query error, using local fallback:', err);
+    console.error('Supabase plots fetch error:', err);
   }
 
-  if (typeof window !== 'undefined') {
-    const cached = localStorage.getItem(STORAGE_KEYS.PLOTS);
-    if (cached) {
-      try {
-        return JSON.parse(cached);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  }
   return DEFAULT_PLOTS;
 }
 
 export async function updatePlot(plot: Plot): Promise<Plot> {
-  try {
-    const { data, error } = await supabase
-      .from('plots')
-      .upsert({
-        ...plot,
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-    if (!error && data) return data as Plot;
-  } catch (e) {
-    console.warn('Remote plot update failed', e);
-  }
-
-  if (typeof window !== 'undefined') {
-    const all = await getPlots();
-    const updatedList = all.map((p) => (p.plot_number === plot.plot_number ? { ...p, ...plot } : p));
-    localStorage.setItem(STORAGE_KEYS.PLOTS, JSON.stringify(updatedList));
-  }
-  return plot;
-}
-
-export async function addPlot(plot: Omit<Plot, 'id'>): Promise<Plot> {
-  const newPlot: Plot = {
-    ...plot,
-    id: `plot-${Date.now()}`,
-    created_at: new Date().toISOString(),
+  const payload = {
+    plot_number: String(plot.plot_number),
+    area_sq_yards: Number(plot.area_sq_yards),
+    area_cents: Number(plot.area_cents),
+    dimensions: plot.dimensions,
+    facing: plot.facing,
+    road_width: plot.road_width,
+    status: plot.status,
+    is_corner: Boolean(plot.is_corner),
+    x: plot.x !== undefined ? Number(plot.x) : 100,
+    y: plot.y !== undefined ? Number(plot.y) : 100,
+    width: plot.width !== undefined ? Number(plot.width) : 75,
+    height: plot.height !== undefined ? Number(plot.height) : 55,
+    boundary_svg: plot.boundary_svg || null,
+    notes: plot.notes || null,
     updated_at: new Date().toISOString(),
   };
 
-  try {
-    const { data, error } = await supabase.from('plots').insert([newPlot]).select().single();
-    if (!error && data) return data as Plot;
-  } catch (e) {
-    console.warn('Remote add plot failed', e);
+  const { data, error } = await supabase
+    .from('plots')
+    .upsert(payload, { onConflict: 'plot_number' })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to update plot in Supabase: ${error.message}`);
   }
 
-  if (typeof window !== 'undefined') {
-    const all = await getPlots();
-    all.push(newPlot);
-    localStorage.setItem(STORAGE_KEYS.PLOTS, JSON.stringify(all));
+  return { ...plot, ...data };
+}
+
+export async function addPlot(plot: Omit<Plot, 'id'>): Promise<Plot> {
+  const payload = {
+    plot_number: String(plot.plot_number),
+    area_sq_yards: Number(plot.area_sq_yards),
+    area_cents: Number(plot.area_cents),
+    dimensions: plot.dimensions,
+    facing: plot.facing,
+    road_width: plot.road_width,
+    status: plot.status,
+    is_corner: Boolean(plot.is_corner),
+    x: plot.x !== undefined ? Number(plot.x) : 100,
+    y: plot.y !== undefined ? Number(plot.y) : 100,
+    width: plot.width !== undefined ? Number(plot.width) : 75,
+    height: plot.height !== undefined ? Number(plot.height) : 55,
+    boundary_svg: plot.boundary_svg || null,
+    notes: plot.notes || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from('plots')
+    .insert([payload])
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to add plot to Supabase: ${error.message}`);
   }
-  return newPlot;
+
+  return data as Plot;
 }
 
 export async function deletePlot(plot_number: string): Promise<boolean> {
-  try {
-    await supabase.from('plots').delete().eq('plot_number', plot_number);
-  } catch (e) {
-    console.warn('Remote delete plot failed', e);
-  }
+  const { error } = await supabase
+    .from('plots')
+    .delete()
+    .eq('plot_number', plot_number);
 
-  if (typeof window !== 'undefined') {
-    const all = await getPlots();
-    const filtered = all.filter((p) => p.plot_number !== plot_number);
-    localStorage.setItem(STORAGE_KEYS.PLOTS, JSON.stringify(filtered));
+  if (error) {
+    throw new Error(`Failed to delete plot from Supabase: ${error.message}`);
   }
   return true;
 }
 
-// ---------------- EDITABLE PROJECT SETTINGS ----------------
+// ---------------- EDITABLE PROJECT SETTINGS (PURE SUPABASE SYNC) ----------------
 export const DEFAULT_SETTINGS: ProjectSettings = {
   contact_phone: '+91 94402 99999',
   whatsapp_number: '919440299999',
@@ -274,16 +253,6 @@ export async function getProjectSettings(): Promise<ProjectSettings> {
     console.warn('Supabase settings query error:', err);
   }
 
-  if (typeof window !== 'undefined') {
-    const cached = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-    if (cached) {
-      try {
-        return { ...DEFAULT_SETTINGS, ...JSON.parse(cached) };
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  }
   return DEFAULT_SETTINGS;
 }
 
@@ -291,21 +260,18 @@ export async function saveProjectSettings(settings: Partial<ProjectSettings>): P
   const current = await getProjectSettings();
   const merged: ProjectSettings = { ...current, ...settings };
 
-  try {
-    await supabase
-      .from('project_settings')
-      .upsert({
-        key: 'general',
-        value: merged,
-        updated_at: new Date().toISOString(),
-      });
-  } catch (e) {
-    console.warn('Remote settings save failed', e);
+  const { error } = await supabase
+    .from('project_settings')
+    .upsert({
+      key: 'general',
+      value: merged,
+      updated_at: new Date().toISOString(),
+    });
+
+  if (error) {
+    throw new Error(`Failed to save settings to Supabase: ${error.message}`);
   }
 
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(merged));
-  }
   return merged;
 }
 
@@ -330,7 +296,7 @@ export async function getAmenities(): Promise<Amenity[]> {
   return DEFAULT_AMENITIES;
 }
 
-// ---------------- GALLERY ----------------
+// ---------------- GALLERY (PURE SUPABASE SYNC) ----------------
 export async function getGallery(): Promise<GalleryItem[]> {
   try {
     const { data, error } = await supabase.from('gallery_items').select('*').order('order_index');
@@ -338,282 +304,213 @@ export async function getGallery(): Promise<GalleryItem[]> {
   } catch (e) {
     console.warn('Supabase gallery error', e);
   }
-
-  if (typeof window !== 'undefined') {
-    const cached = localStorage.getItem(STORAGE_KEYS.GALLERY);
-    if (cached) {
-      try {
-        return JSON.parse(cached);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  }
   return DEFAULT_GALLERY;
 }
 
 export async function addGalleryItem(item: Partial<GalleryItem>): Promise<GalleryItem> {
-  const newItem: GalleryItem = {
-    id: item.id || `gal-${Date.now()}`,
+  const newItem = {
     title: item.title || 'Township Capture',
     category: item.category || 'Ground Progress',
     media_type: item.media_type || 'image',
     media_url: item.media_url || '',
     thumbnail_url: item.thumbnail_url || item.media_url || '',
     order_index: item.order_index || 99,
-    created_at: new Date().toISOString(),
   };
 
-  try {
-    await supabase.from('gallery_items').insert([newItem]);
-  } catch (e) {
-    console.warn('Remote gallery insert error', e);
+  const { data, error } = await supabase
+    .from('gallery_items')
+    .insert([newItem])
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to add gallery item to Supabase: ${error.message}`);
   }
 
-  if (typeof window !== 'undefined') {
-    const all = await getGallery();
-    all.push(newItem);
-    localStorage.setItem(STORAGE_KEYS.GALLERY, JSON.stringify(all));
-  }
-  return newItem;
+  return data as GalleryItem;
 }
 
 export async function deleteGalleryItem(id: string): Promise<boolean> {
-  try {
-    await supabase.from('gallery_items').delete().eq('id', id);
-  } catch (e) {
-    console.warn('Remote delete gallery error', e);
-  }
-
-  if (typeof window !== 'undefined') {
-    const all = await getGallery();
-    const filtered = all.filter((g) => g.id !== id);
-    localStorage.setItem(STORAGE_KEYS.GALLERY, JSON.stringify(filtered));
+  const { error } = await supabase.from('gallery_items').delete().eq('id', id);
+  if (error) {
+    throw new Error(`Failed to delete gallery item from Supabase: ${error.message}`);
   }
   return true;
 }
 
-// ---------------- SITE VISITS ----------------
+// ---------------- SITE VISITS (PURE SUPABASE SYNC) ----------------
 export async function submitSiteVisit(request: Omit<SiteVisitRequest, 'id' | 'status' | 'created_at'>): Promise<SiteVisitRequest> {
-  const newVisit: SiteVisitRequest = {
-    ...request,
-    id: `sv-${Date.now()}`,
+  const payload = {
+    full_name: request.full_name,
+    phone: request.phone,
+    email: request.email || null,
+    preferred_date: request.preferred_date,
+    preferred_time_slot: request.preferred_time_slot,
+    interested_plot_number: request.interested_plot_number || null,
+    pickup_location: request.pickup_location || null,
+    notes: request.notes || null,
     status: 'pending',
-    created_at: new Date().toISOString(),
   };
 
-  try {
-    const { data, error } = await supabase
-      .from('site_visits')
-      .insert([{
-        full_name: request.full_name,
-        phone: request.phone,
-        email: request.email,
-        preferred_date: request.preferred_date,
-        preferred_time_slot: request.preferred_time_slot,
-        interested_plot_number: request.interested_plot_number,
-        pickup_location: request.pickup_location,
-        notes: request.notes,
-        status: 'pending',
-      }])
-      .select()
-      .single();
+  const { data, error } = await supabase
+    .from('site_visits')
+    .insert([payload])
+    .select()
+    .single();
 
-    if (!error && data) return data as SiteVisitRequest;
-  } catch (e) {
-    console.warn('Remote site visit insert error', e);
+  if (error) {
+    throw new Error(`Failed to submit site visit to Supabase: ${error.message}`);
   }
 
-  if (typeof window !== 'undefined') {
-    const list = await getSiteVisits();
-    list.unshift(newVisit);
-    localStorage.setItem(STORAGE_KEYS.SITE_VISITS, JSON.stringify(list));
-  }
-  return newVisit;
+  return data as SiteVisitRequest;
 }
 
 export async function getSiteVisits(): Promise<SiteVisitRequest[]> {
   try {
-    const { data, error } = await supabase.from('site_visits').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('site_visits')
+      .select('*')
+      .order('created_at', { ascending: false });
+
     if (!error && data && data.length > 0) return data as SiteVisitRequest[];
   } catch (e) {
     console.warn('Remote site visits query error', e);
   }
-
-  if (typeof window !== 'undefined') {
-    const cached = localStorage.getItem(STORAGE_KEYS.SITE_VISITS);
-    if (cached) {
-      try {
-        return JSON.parse(cached);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  }
-  return [
-    {
-      id: 'sv-demo-1',
-      full_name: 'Rajesh Kumar Reddy',
-      phone: '+91 98480 12345',
-      email: 'rajesh.reddy@example.com',
-      preferred_date: '2026-11-05',
-      preferred_time_slot: 'Morning (9 AM - 12 PM)',
-      interested_plot_number: '1',
-      pickup_location: 'Koilakuntla RTC Bus Stand',
-      notes: 'Interested in Corner East plot for independent duplex construction.',
-      status: 'confirmed',
-      created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
-    },
-    {
-      id: 'sv-demo-2',
-      full_name: 'Venkat Rao Naidu',
-      phone: '+91 94412 87654',
-      email: 'venkat.naidu@gmail.com',
-      preferred_date: '2026-11-07',
-      preferred_time_slot: 'Afternoon (12 PM - 3 PM)',
-      interested_plot_number: '29',
-      pickup_location: 'Self drive to site',
-      notes: 'Wants to inspect park facing plots.',
-      status: 'pending',
-      created_at: new Date(Date.now() - 3600000 * 18).toISOString(),
-    }
-  ];
+  return [];
 }
 
 export async function updateSiteVisitStatus(id: string, status: SiteVisitRequest['status'], admin_notes?: string): Promise<boolean> {
-  try {
-    await supabase.from('site_visits').update({ status, admin_notes }).eq('id', id);
-  } catch (e) {
-    console.warn('Remote site visit update error', e);
-  }
+  const { error } = await supabase
+    .from('site_visits')
+    .update({ status, admin_notes, updated_at: new Date().toISOString() })
+    .eq('id', id);
 
-  if (typeof window !== 'undefined') {
-    const all = await getSiteVisits();
-    const updated = all.map((v) => (v.id === id ? { ...v, status, admin_notes } : v));
-    localStorage.setItem(STORAGE_KEYS.SITE_VISITS, JSON.stringify(updated));
+  if (error) {
+    throw new Error(`Failed to update site visit status in Supabase: ${error.message}`);
   }
   return true;
 }
 
-// ---------------- CUSTOMER ENQUIRIES ----------------
+// ---------------- CUSTOMER ENQUIRIES (PURE SUPABASE SYNC) ----------------
 export async function submitEnquiry(enquiry: Omit<Enquiry, 'id' | 'status' | 'created_at'>): Promise<Enquiry> {
-  const newEnquiry: Enquiry = {
-    ...enquiry,
-    id: `enq-${Date.now()}`,
+  const payload = {
+    full_name: enquiry.full_name,
+    phone: enquiry.phone,
+    email: enquiry.email || null,
+    subject: enquiry.subject || 'Plot Pricing Inquiry',
+    message: enquiry.message,
     status: 'new',
-    created_at: new Date().toISOString(),
   };
 
-  try {
-    const { data, error } = await supabase
-      .from('enquiries')
-      .insert([{
-        full_name: enquiry.full_name,
-        phone: enquiry.phone,
-        email: enquiry.email,
-        subject: enquiry.subject,
-        message: enquiry.message,
-        status: 'new',
-      }])
-      .select()
-      .single();
+  const { data, error } = await supabase
+    .from('enquiries')
+    .insert([payload])
+    .select()
+    .single();
 
-    if (!error && data) return data as Enquiry;
-  } catch (e) {
-    console.warn('Remote enquiry insert error', e);
+  if (error) {
+    throw new Error(`Failed to submit enquiry to Supabase: ${error.message}`);
   }
 
-  if (typeof window !== 'undefined') {
-    const list = await getEnquiries();
-    list.unshift(newEnquiry);
-    localStorage.setItem(STORAGE_KEYS.ENQUIRIES, JSON.stringify(list));
-  }
-  return newEnquiry;
+  return data as Enquiry;
 }
 
 export async function getEnquiries(): Promise<Enquiry[]> {
   try {
-    const { data, error } = await supabase.from('enquiries').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('enquiries')
+      .select('*')
+      .order('created_at', { ascending: false });
+
     if (!error && data && data.length > 0) return data as Enquiry[];
   } catch (e) {
     console.warn('Remote enquiries query error', e);
   }
-
-  if (typeof window !== 'undefined') {
-    const cached = localStorage.getItem(STORAGE_KEYS.ENQUIRIES);
-    if (cached) {
-      try {
-        return JSON.parse(cached);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  }
-  return [
-    {
-      id: 'enq-demo-1',
-      full_name: 'P. Sudhakar',
-      phone: '+91 97011 22334',
-      email: 'sudhakar.p@outlook.com',
-      subject: 'Inquiry regarding 200 Sq Yards Plot Price and Payment Schedule',
-      message: 'Looking to invest in Plot 2 or 5. Please share price per sq yard and installment options.',
-      status: 'new',
-      created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-    },
-    {
-      id: 'enq-demo-2',
-      full_name: 'M. Chandra Mohan',
-      phone: '+91 98495 66778',
-      email: 'm.mohan@gmail.com',
-      subject: 'Bank Loan eligibility and DTCP approval documents',
-      message: 'Are home loans pre-approved with SBI or HDFC? Please advise when we can meet.',
-      status: 'in_progress',
-      created_at: new Date(Date.now() - 3600000 * 22).toISOString(),
-    }
-  ];
+  return [];
 }
 
 export async function updateEnquiryStatus(id: string, status: Enquiry['status'], admin_notes?: string): Promise<boolean> {
-  try {
-    await supabase.from('enquiries').update({ status, admin_notes }).eq('id', id);
-  } catch (e) {
-    console.warn('Remote enquiry update error', e);
-  }
+  const { error } = await supabase
+    .from('enquiries')
+    .update({ status, admin_notes, updated_at: new Date().toISOString() })
+    .eq('id', id);
 
-  if (typeof window !== 'undefined') {
-    const all = await getEnquiries();
-    const updated = all.map((e) => (e.id === id ? { ...e, status, admin_notes } : e));
-    localStorage.setItem(STORAGE_KEYS.ENQUIRIES, JSON.stringify(updated));
+  if (error) {
+    throw new Error(`Failed to update enquiry in Supabase: ${error.message}`);
   }
   return true;
 }
 
-// ---------------- SUPABASE STORAGE UPLOAD ----------------
+// ---------------- SUPABASE STORAGE UPLOAD (NO BLOB URLS) ----------------
 export async function uploadMediaToSupabase(file: File, folder: string = 'hero'): Promise<string> {
-  const fileExt = file.name.split('.').pop();
-  const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+  const fileExt = file.name.split('.').pop()?.toLowerCase() || 'mp4';
+  const cleanBase = file.name.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 20);
+  const fileName = `${folder}/${Date.now()}_${cleanBase}.${fileExt}`;
 
-  try {
-    const { data, error } = await supabase.storage
-      .from(TOWNSHIP_BUCKET)
-      .upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: true,
-      });
+  // Upload to Supabase Storage
+  const { data, error } = await supabase.storage
+    .from(TOWNSHIP_BUCKET)
+    .upload(fileName, file, {
+      cacheControl: '31536000',
+      upsert: true,
+      contentType: file.type || undefined,
+    });
 
-    if (error) {
-      console.warn('Storage upload error, generating local object URL:', error);
-      return URL.createObjectURL(file);
-    }
-
-    const { data: urlData } = supabase.storage
-      .from(TOWNSHIP_BUCKET)
-      .getPublicUrl(data.path);
-
-    return urlData.publicUrl;
-  } catch (err) {
-    console.warn('Storage exception, creating local preview URL:', err);
-    return URL.createObjectURL(file);
+  if (error) {
+    throw new Error(
+      `Supabase Storage upload failed: ${error.message}. Please check that the bucket "${TOWNSHIP_BUCKET}" exists and public upload policies are enabled in your Supabase SQL editor.`
+    );
   }
+
+  // Retrieve permanent public URL
+  const { data: urlData } = supabase.storage
+    .from(TOWNSHIP_BUCKET)
+    .getPublicUrl(data.path);
+
+  if (!urlData?.publicUrl) {
+    throw new Error('Supabase did not return a public URL for the uploaded asset.');
+  }
+
+  return urlData.publicUrl;
 }
 
+// ---------------- REALTIME EVENT LISTENERS ----------------
+export function subscribeToHeroVideos(onChange: () => void) {
+  const channel = supabase
+    .channel('realtime:hero_videos')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'hero_videos' }, () => {
+      onChange();
+    })
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+export function subscribeToPlots(onChange: () => void) {
+  const channel = supabase
+    .channel('realtime:plots')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'plots' }, () => {
+      onChange();
+    })
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+export function subscribeToSettings(onChange: (settings: ProjectSettings) => void) {
+  const channel = supabase
+    .channel('realtime:settings')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'project_settings' }, async () => {
+      const updated = await getProjectSettings();
+      onChange(updated);
+    })
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}

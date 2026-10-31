@@ -1,23 +1,50 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ZoomIn, ZoomOut, RotateCcw, Map, Layers, CheckCircle2, Search, Filter } from 'lucide-react';
 import { Plot, PlotStatus, PlotFacing } from '@/lib/types';
 import { DEFAULT_PLOTS } from '@/lib/defaultData';
+import { getPlots, subscribeToPlots } from '@/lib/supabase';
 import PlotDetailModal from './PlotDetailModal';
 
 interface InteractiveMasterLayoutProps {
   plots?: Plot[];
 }
 
-export default function InteractiveMasterLayout({ plots = DEFAULT_PLOTS }: InteractiveMasterLayoutProps) {
+export default function InteractiveMasterLayout({ plots: initialPlots = DEFAULT_PLOTS }: InteractiveMasterLayoutProps) {
+  const [plots, setPlots] = useState<Plot[]>(initialPlots);
   const [selectedPlot, setSelectedPlot] = useState<Plot | null>(null);
   const [hoveredPlot, setHoveredPlot] = useState<Plot | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | PlotStatus>('all');
   const [facingFilter, setFacingFilter] = useState<'all' | PlotFacing>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [zoomLevel, setZoomLevel] = useState(1);
+
+  // Sync state if initial prop changes
+  useEffect(() => {
+    if (initialPlots && initialPlots.length > 0) {
+      setPlots(initialPlots);
+    }
+  }, [initialPlots]);
+
+  // Realtime subscription for instant cloud sync
+  useEffect(() => {
+    async function refreshPlots() {
+      const live = await getPlots();
+      if (live && live.length > 0) {
+        setPlots(live);
+      }
+    }
+
+    const unsubscribe = subscribeToPlots(() => {
+      refreshPlots();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // Filtered plot list
   const filteredPlots = useMemo(() => {

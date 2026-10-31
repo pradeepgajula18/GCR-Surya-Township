@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { Search, Filter, Compass, Maximize2, Route, Calendar, MessageSquare, Check, ArrowRight } from 'lucide-react';
 import { Plot, PlotStatus, PlotFacing } from '@/lib/types';
 import { DEFAULT_PLOTS } from '@/lib/defaultData';
+import { getPlots, subscribeToPlots } from '@/lib/supabase';
 import { SITE_CONFIG } from '@/lib/constants';
 import PlotDetailModal from './PlotDetailModal';
 
@@ -12,12 +13,36 @@ interface PlotAvailabilityDirectoryProps {
   plots?: Plot[];
 }
 
-export default function PlotAvailabilityDirectory({ plots = DEFAULT_PLOTS }: PlotAvailabilityDirectoryProps) {
+export default function PlotAvailabilityDirectory({ plots: initialPlots = DEFAULT_PLOTS }: PlotAvailabilityDirectoryProps) {
+  const [plots, setPlots] = useState<Plot[]>(initialPlots);
   const [selectedPlot, setSelectedPlot] = useState<Plot | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | PlotStatus>('available');
   const [facingFilter, setFacingFilter] = useState<'all' | PlotFacing>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'plot_number' | 'area_sq_yards'>('plot_number');
+
+  useEffect(() => {
+    if (initialPlots && initialPlots.length > 0) {
+      setPlots(initialPlots);
+    }
+  }, [initialPlots]);
+
+  useEffect(() => {
+    async function refreshPlots() {
+      const live = await getPlots();
+      if (live && live.length > 0) {
+        setPlots(live);
+      }
+    }
+
+    const unsubscribe = subscribeToPlots(() => {
+      refreshPlots();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const filteredPlots = useMemo(() => {
     return plots

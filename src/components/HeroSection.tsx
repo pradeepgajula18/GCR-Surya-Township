@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Volume2, VolumeX, Play, Pause, Compass, ShieldCheck, ChevronDown, Calendar, ArrowRight, Phone } from 'lucide-react';
 import { HeroVideo } from '@/lib/types';
-import { getActiveHeroVideo } from '@/lib/supabase';
+import { getActiveHeroVideo, subscribeToHeroVideos } from '@/lib/supabase';
 import { DEFAULT_HERO_VIDEOS } from '@/lib/defaultData';
 import { SITE_CONFIG } from '@/lib/constants';
 
@@ -21,7 +21,7 @@ export default function HeroSection({ initialVideo }: HeroSectionProps) {
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Fetch dynamic hero video from Supabase / local cache
+  // Fetch dynamic hero video from Supabase and subscribe to Realtime updates
   useEffect(() => {
     async function loadVideo() {
       const active = await getActiveHeroVideo();
@@ -30,6 +30,15 @@ export default function HeroSection({ initialVideo }: HeroSectionProps) {
       }
     }
     loadVideo();
+
+    // Realtime sync across all devices
+    const unsubscribe = subscribeToHeroVideos(() => {
+      loadVideo();
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const togglePlay = () => {

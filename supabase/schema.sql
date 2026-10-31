@@ -1,6 +1,8 @@
 -- ==========================================================
--- GCR SURYA TOWNSHIP, KOILAKUNTLA - SUPABASE DATABASE SCHEMA
+-- GCR SURYA TOWNSHIP, KOILAKUNTLA - COMPLETE SUPABASE SCHEMA
 -- Developer: SUDHEER DEVELOPERS (G. Sudheer Reddy)
+-- Website: https://suryatownship.vercel.app
+-- Contact: +91 94402 99999
 -- ==========================================================
 
 -- Enable pgcrypto for UUID generation
@@ -21,10 +23,9 @@ CREATE TABLE IF NOT EXISTS public.hero_videos (
     updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Ensure only one video is active at a time or query ORDER BY is_active DESC, updated_at DESC LIMIT 1
 CREATE INDEX IF NOT EXISTS idx_hero_videos_active ON public.hero_videos(is_active);
 
--- 2. PLOTS INVENTORY TABLE
+-- 2. PLOTS INVENTORY TABLE (Coordinates, dimensions, layout shapes)
 CREATE TABLE IF NOT EXISTS public.plots (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     plot_number VARCHAR(30) UNIQUE NOT NULL,
@@ -38,7 +39,10 @@ CREATE TABLE IF NOT EXISTS public.plots (
     total_price NUMERIC(14, 2),
     is_corner BOOLEAN DEFAULT false,
     boundary_svg TEXT,
-    coordinates JSONB,
+    x NUMERIC(10, 2) DEFAULT 100,
+    y NUMERIC(10, 2) DEFAULT 100,
+    width NUMERIC(10, 2) DEFAULT 75,
+    height NUMERIC(10, 2) DEFAULT 55,
     notes TEXT,
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -123,6 +127,8 @@ CREATE TABLE IF NOT EXISTS public.project_settings (
 
 -- ==========================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
+-- Enables direct sync between Admin dashboard and public view
+-- without requiring email/password auth sessions
 -- ==========================================================
 ALTER TABLE public.hero_videos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.plots ENABLE ROW LEVEL SECURITY;
@@ -133,50 +139,97 @@ ALTER TABLE public.site_visits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.enquiries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_settings ENABLE ROW LEVEL SECURITY;
 
--- PUBLIC READ POLICIES (Anyone can read public marketing content)
-CREATE POLICY "Public can read active hero videos" ON public.hero_videos FOR SELECT USING (true);
-CREATE POLICY "Public can read plots inventory" ON public.plots FOR SELECT USING (true);
-CREATE POLICY "Public can read highlights" ON public.project_highlights FOR SELECT USING (true);
-CREATE POLICY "Public can read amenities" ON public.amenities FOR SELECT USING (true);
-CREATE POLICY "Public can read gallery" ON public.gallery_items FOR SELECT USING (true);
-CREATE POLICY "Public can read project settings" ON public.project_settings FOR SELECT USING (true);
+-- Clean existing policies
+DROP POLICY IF EXISTS "Public can read active hero videos" ON public.hero_videos;
+DROP POLICY IF EXISTS "Admins full access to hero videos" ON public.hero_videos;
+DROP POLICY IF EXISTS "Allow all hero_videos access" ON public.hero_videos;
 
--- PUBLIC INSERT POLICIES (Visitors can submit site visits and enquiries)
-CREATE POLICY "Public can insert site visits" ON public.site_visits FOR INSERT WITH CHECK (true);
-CREATE POLICY "Public can insert enquiries" ON public.enquiries FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Public can read plots inventory" ON public.plots;
+DROP POLICY IF EXISTS "Admins full access to plots" ON public.plots;
+DROP POLICY IF EXISTS "Allow all plots access" ON public.plots;
 
--- AUTHENTICATED / SERVICE ROLE POLICIES (Admins can do everything)
-CREATE POLICY "Admins full access to hero videos" ON public.hero_videos FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
-CREATE POLICY "Admins full access to plots" ON public.plots FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
-CREATE POLICY "Admins full access to highlights" ON public.project_highlights FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
-CREATE POLICY "Admins full access to amenities" ON public.amenities FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
-CREATE POLICY "Admins full access to gallery" ON public.gallery_items FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
-CREATE POLICY "Admins full access to site visits" ON public.site_visits FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
-CREATE POLICY "Admins full access to enquiries" ON public.enquiries FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
-CREATE POLICY "Admins full access to project settings" ON public.project_settings FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
+DROP POLICY IF EXISTS "Public can read highlights" ON public.project_highlights;
+DROP POLICY IF EXISTS "Admins full access to highlights" ON public.project_highlights;
+DROP POLICY IF EXISTS "Allow all highlights access" ON public.project_highlights;
 
--- STORAGE BUCKETS SETUP
+DROP POLICY IF EXISTS "Public can read amenities" ON public.amenities;
+DROP POLICY IF EXISTS "Admins full access to amenities" ON public.amenities;
+DROP POLICY IF EXISTS "Allow all amenities access" ON public.amenities;
+
+DROP POLICY IF EXISTS "Public can read gallery" ON public.gallery_items;
+DROP POLICY IF EXISTS "Admins full access to gallery" ON public.gallery_items;
+DROP POLICY IF EXISTS "Allow all gallery access" ON public.gallery_items;
+
+DROP POLICY IF EXISTS "Public can read project settings" ON public.project_settings;
+DROP POLICY IF EXISTS "Admins full access to project settings" ON public.project_settings;
+DROP POLICY IF EXISTS "Allow all settings access" ON public.project_settings;
+
+DROP POLICY IF EXISTS "Public can insert site visits" ON public.site_visits;
+DROP POLICY IF EXISTS "Admins full access to site visits" ON public.site_visits;
+DROP POLICY IF EXISTS "Allow all site_visits access" ON public.site_visits;
+
+DROP POLICY IF EXISTS "Public can insert enquiries" ON public.enquiries;
+DROP POLICY IF EXISTS "Admins full access to enquiries" ON public.enquiries;
+DROP POLICY IF EXISTS "Allow all enquiries access" ON public.enquiries;
+
+-- UNIVERSAL POLICIES FOR INSTANT REAL-TIME CLOUD SYNC
+CREATE POLICY "Allow all hero_videos access" ON public.hero_videos FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all plots access" ON public.plots FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all highlights access" ON public.project_highlights FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all amenities access" ON public.amenities FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all gallery access" ON public.gallery_items FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all site_visits access" ON public.site_visits FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all enquiries access" ON public.enquiries FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all settings access" ON public.project_settings FOR ALL USING (true) WITH CHECK (true);
+
+-- ==========================================================
+-- STORAGE BUCKETS SETUP (township-media)
+-- ==========================================================
 INSERT INTO storage.buckets (id, name, public) 
 VALUES ('township-media', 'township-media', true)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET public = true;
 
-CREATE POLICY "Public Access Township Media" 
-ON storage.objects FOR SELECT 
-USING (bucket_id = 'township-media');
+DROP POLICY IF EXISTS "Public Access Township Media" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated Upload Township Media" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated Update Township Media" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated Delete Township Media" ON storage.objects;
+DROP POLICY IF EXISTS "Allow all storage select" ON storage.objects;
+DROP POLICY IF EXISTS "Allow all storage insert" ON storage.objects;
+DROP POLICY IF EXISTS "Allow all storage update" ON storage.objects;
+DROP POLICY IF EXISTS "Allow all storage delete" ON storage.objects;
 
-CREATE POLICY "Authenticated Upload Township Media" 
-ON storage.objects FOR INSERT 
-WITH CHECK (bucket_id = 'township-media' AND (auth.role() = 'authenticated' OR auth.role() = 'anon'));
+CREATE POLICY "Allow all storage select" ON storage.objects FOR SELECT USING (bucket_id = 'township-media');
+CREATE POLICY "Allow all storage insert" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'township-media');
+CREATE POLICY "Allow all storage update" ON storage.objects FOR UPDATE USING (bucket_id = 'township-media');
+CREATE POLICY "Allow all storage delete" ON storage.objects FOR DELETE USING (bucket_id = 'township-media');
 
-CREATE POLICY "Authenticated Update Township Media" 
-ON storage.objects FOR UPDATE 
-USING (bucket_id = 'township-media');
-
-CREATE POLICY "Authenticated Delete Township Media" 
-ON storage.objects FOR DELETE 
-USING (bucket_id = 'township-media');
-
--- ENABLE SUPABASE REALTIME ON PLOTS & HERO VIDEOS
-ALTER PUBLICATION supabase_realtime ADD TABLE public.plots;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.hero_videos;
-
+-- ==========================================================
+-- ENABLE SUPABASE REALTIME REPLICATION FOR LIVE SYNC
+-- ==========================================================
+DO $$
+BEGIN
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.hero_videos;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.plots;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.project_settings;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.gallery_items;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.site_visits;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.enquiries;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+END $$;

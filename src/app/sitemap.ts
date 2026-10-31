@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://gcrsuryatownship.com';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://suryatownship.vercel.app';
   const currentDate = new Date().toISOString();
 
   const routes = [
@@ -63,3 +63,4 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return routes;
 }
+

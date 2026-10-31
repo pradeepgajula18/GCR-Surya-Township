@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <!-- Outer Circular Navy Ring -->
+  <circle cx="50" cy="50" r="46" fill="#FFFFFF" stroke="#0B3064" stroke-width="6" />
+  
+  <!-- Sun Orange Dynamic Crescent Arc on Top-Left -->
+  <path d="M 22 26 A 40 40 0 0 1 82 22" fill="none" stroke="#F26522" stroke-width="4.5" stroke-linecap="round" />
+  
+  <!-- House Roof in Deep Navy -->
+  <path d="M 28 44 L 50 28 L 72 44 L 66 44 L 50 32 L 34 44 Z" fill="#0B3064" />
+  
+  <!-- Chimney -->
+  <rect x="61" y="30" width="5" height="10" fill="#0B3064" />
+  
+  <!-- House Body / Posts -->
+  <rect x="37" y="43" width="5" height="9" fill="#0B3064" />
+  <rect x="58" y="43" width="5" height="9" fill="#0B3064" />
+  
+  <!-- 4 Bright Orange Window Panes -->
+  <rect x="44.5" y="38" width="5" height="5" rx="0.5" fill="#F26522" />
+  <rect x="50.5" y="38" width="5" height="5" rx="0.5" fill="#F26522" />
+  <rect x="44.5" y="44" width="5" height="5" rx="0.5" fill="#F26522" />
+  <rect x="50.5" y="44" width="5" height="5" rx="0.5" fill="#F26522" />
+  
+  <!-- Bold GCR Lettering in Royal Navy -->
+  <text x="50" y="66" fill="#0B3064" font-family="Cinzel, Georgia, serif" font-weight="900" font-size="18" text-anchor="middle" letter-spacing="0.5">GCR</text>
+  
+  <!-- Subtitle Line -->
+  <line x1="28" y1="71" x2="72" y2="71" stroke="#F26522" stroke-width="1.2" stroke-linecap="round" />
+  
+  <!-- SURYA TOWNSHIP -->
+  <text x="50" y="78" fill="#0B3064" font-family="sans-serif" font-weight="bold" font-size="6.5" text-anchor="middle" letter-spacing="1">SURYA</text>
+  <text x="50" y="85" fill="#F26522" font-family="sans-serif" font-weight="bold" font-size="5" text-anchor="middle" letter-spacing="1.5">KOILAKUNTLA</text>
+</svg>
