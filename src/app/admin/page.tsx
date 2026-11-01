@@ -70,9 +70,6 @@ export default function AdminDashboardPage() {
     'hero' | 'plots' | 'layout' | 'settings' | 'visits' | 'enquiries' | 'gallery' | 'reports' | 'database'
   >('hero');
 
-  const [selectedLayoutPlot, setSelectedLayoutPlot] = useState<Plot | null>(null);
-  const [isSavingLayoutPlot, setIsSavingLayoutPlot] = useState(false);
-  const [layoutZoom, setLayoutZoom] = useState(1);
 
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState('admin@gcrsuryatownship.com');
@@ -80,6 +77,9 @@ export default function AdminDashboardPage() {
   // Module state
   const [heroVideos, setHeroVideos] = useState<HeroVideo[]>([]);
   const [plots, setPlots] = useState<Plot[]>([]);
+  const [selectedLayoutPlot, setSelectedLayoutPlot] = useState<Plot | null>(null);
+  const [isSavingLayoutPlot, setIsSavingLayoutPlot] = useState(false);
+  const [layoutZoom, setLayoutZoom] = useState(1);
   const [siteVisits, setSiteVisits] = useState<SiteVisitRequest[]>([]);
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
@@ -166,6 +166,9 @@ export default function AdminDashboardPage() {
       setPlots(plts);
       if (plts.length > 0) {
         setSelectedLayoutPlot((prev) => prev || plts[0]);
+      }
+      if (plts.length > 0 && !selectedLayoutPlot) {
+        setSelectedLayoutPlot(plts[0]);
       }
       setSiteVisits(vsts);
       setEnquiries(enqs);
@@ -846,6 +849,470 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* TAB: INTERACTIVE PLOTTED LAYOUT & SHAPE EDITOR */}
+        {/* ============================================================== */}
+        {activeTab === 'layout' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs uppercase font-bold text-emerald-700 tracking-wider">
+                    Cloud Realtime Synced
+                  </span>
+                </div>
+                <h3 className="font-serif text-2xl font-bold text-surya-navy-950 mt-1">
+                  Interactive Plotted Layout & Shape Editor
+                </h3>
+                <p className="text-slate-600 text-sm mt-0.5">
+                  Click any demarcated plot on the map to modify coordinates, shape boundaries, orientation, or dimensions in realtime.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 self-end md:self-auto">
+                <div className="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200 text-xs">
+                  <button
+                    onClick={() => setLayoutZoom((prev) => Math.min(prev + 0.15, 2.0))}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Zoom In"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setLayoutZoom((prev) => Math.max(prev - 0.15, 0.7))}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setLayoutZoom(1)}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Reset Zoom"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const nextNum = (plots.length + 1).toString();
+                    setNewPlotForm({
+                      plot_number: nextNum,
+                      area_sq_yards: 200,
+                      area_cents: 4.13,
+                      dimensions: "36' x 50'",
+                      facing: 'East',
+                      road_width: '40 Feet',
+                      status: 'available',
+                      is_corner: false,
+                      notes: '',
+                    });
+                    setShowAddPlotModal(true);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-surya-orange-500 hover:bg-surya-orange-600 text-white font-semibold text-xs shadow-md flex items-center gap-1.5 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add New Plot</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Layout Canvas + Inspector Split View */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left/Main: Visual SVG Canvas */}
+              <div className="lg:col-span-8 bg-white rounded-3xl p-4 sm:p-6 shadow-md border border-slate-200 overflow-hidden">
+                <div className="flex items-center justify-between mb-3 text-xs text-slate-500">
+                  <span>Interactive Map Preview (Click plot to select)</span>
+                  {selectedLayoutPlot && (
+                    <span className="font-bold text-surya-orange-600">
+                      Active: Plot #{selectedLayoutPlot.plot_number} (X: {Math.round(selectedLayoutPlot.x || 100)}, Y: {Math.round(selectedLayoutPlot.y || 100)})
+                    </span>
+                  )}
+                </div>
+
+                <div className="w-full overflow-x-auto overflow-y-hidden pb-4">
+                  <div
+                    style={{
+                      transform: `scale(${layoutZoom})`,
+                      transformOrigin: 'top left',
+                      transition: 'transform 0.2s ease-out',
+                      minWidth: '1150px',
+                    }}
+                    className="relative select-none"
+                  >
+                    <svg
+                      viewBox="0 0 1200 700"
+                      className="w-full h-auto drop-shadow-sm cursor-crosshair"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      {/* Background */}
+                      <rect x="20" y="20" width="1160" height="660" rx="16" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="3" />
+
+                      {/* Grand Entrance */}
+                      <rect x="30" y="30" width="160" height="70" rx="8" fill="#0B3064" stroke="#F26522" strokeWidth="2" />
+                      <text x="110" y="60" fill="#FFFFFF" fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                        GRAND ENTRANCE
+                      </text>
+                      <text x="110" y="76" fill="#F26522" fontSize="9" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                        ARCH & CABIN
+                      </text>
+
+                      {/* Roads */}
+                      <rect x="200" y="30" width="70" height="640" fill="#334155" opacity="0.9" />
+                      <line x1="235" y1="30" x2="235" y2="670" stroke="#F8FAFC" strokeWidth="2" strokeDasharray="10 10" />
+                      <text x="235" y="360" fill="#FFFFFF" fontSize="12" fontWeight="bold" textAnchor="middle" transform="rotate(-90 235 360)">
+                        40-FEET MAIN BOULEVARD
+                      </text>
+
+                      <rect x="20" y="275" width="1160" height="40" fill="#475569" opacity="0.85" />
+                      <line x1="20" y1="295" x2="1180" y2="295" stroke="#E2E8F0" strokeWidth="1.5" strokeDasharray="8 8" />
+
+                      <rect x="20" y="445" width="1160" height="40" fill="#475569" opacity="0.85" />
+                      <line x1="20" y1="465" x2="1180" y2="465" stroke="#E2E8F0" strokeWidth="1.5" strokeDasharray="8 8" />
+
+                      <rect x="715" y="30" width="45" height="640" fill="#475569" opacity="0.85" />
+
+                      {/* Central Park */}
+                      <rect x="770" y="275" width="345" height="150" rx="12" fill="#D1FAE5" stroke="#10B981" strokeWidth="2" strokeDasharray="4 4" />
+                      <text x="942" y="355" fill="#065F46" fontSize="13" fontWeight="bold" textAnchor="middle">
+                        CENTRAL PARK & WALKING TRACK
+                      </text>
+
+                      {/* Commercial Corner */}
+                      <rect x="20" y="630" width="180" height="40" rx="6" fill="#FEF3C7" stroke="#D97706" strokeWidth="1.5" />
+                      <text x="110" y="655" fill="#92400E" fontSize="10" fontWeight="bold" textAnchor="middle">
+                        COMMERCIAL
+                      </text>
+
+                      {/* Render All Plots on Canvas */}
+                      {plots.map((plot) => {
+                        const isSelected = selectedLayoutPlot?.plot_number === plot.plot_number;
+
+                        let fillColor = '#10B981';
+                        let strokeColor = '#047857';
+                        let textColor = '#FFFFFF';
+
+                        if (plot.status === 'reserved') {
+                          fillColor = '#F59E0B';
+                          strokeColor = '#B45309';
+                        } else if (plot.status === 'sold') {
+                          fillColor = '#64748B';
+                          strokeColor = '#334155';
+                          textColor = '#E2E8F0';
+                        }
+
+                        const x = plot.x !== undefined ? Number(plot.x) : 100;
+                        const y = plot.y !== undefined ? Number(plot.y) : 100;
+                        const width = plot.width !== undefined ? Number(plot.width) : 75;
+                        const height = plot.height !== undefined ? Number(plot.height) : 55;
+
+                        return (
+                          <g
+                            key={plot.id || plot.plot_number}
+                            onClick={() => setSelectedLayoutPlot(plot)}
+                            className="cursor-pointer"
+                          >
+                            {/* Plot Rectangle */}
+                            <rect
+                              x={x}
+                              y={y}
+                              width={width}
+                              height={height}
+                              rx="5"
+                              fill={isSelected ? '#3B82F6' : fillColor}
+                              stroke={isSelected ? '#F59E0B' : strokeColor}
+                              strokeWidth={isSelected ? '3.5' : '1.5'}
+                            />
+
+                            {/* Corner indicator */}
+                            {plot.is_corner && (
+                              <circle cx={x + width - 8} cy={y + 8} r="4" fill="#F26522" />
+                            )}
+
+                            {/* Plot Number */}
+                            <text
+                              x={x + width / 2}
+                              y={y + height / 2 - 2}
+                              fill={textColor}
+                              fontSize="11"
+                              fontWeight="bold"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                            >
+                              #{plot.plot_number}
+                            </text>
+
+                            {/* Subtitle Facing */}
+                            <text
+                              x={x + width / 2}
+                              y={y + height / 2 + 12}
+                              fill={textColor}
+                              fontSize="8"
+                              opacity="0.9"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                            >
+                              {plot.facing.slice(0, 1)} • {plot.area_sq_yards}Y
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Shape & Coordinates Inspector Panel */}
+              <div className="lg:col-span-4 bg-white rounded-3xl p-6 shadow-md border border-slate-200">
+                {selectedLayoutPlot ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                      <div>
+                        <span className="text-[11px] uppercase tracking-wider font-bold text-surya-orange-600 block">
+                          Plot Shape Inspector
+                        </span>
+                        <h4 className="font-serif text-2xl font-bold text-surya-navy-950">
+                          Plot #{selectedLayoutPlot.plot_number}
+                        </h4>
+                      </div>
+                      <span
+                        className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase ${
+                          selectedLayoutPlot.status === 'available'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : selectedLayoutPlot.status === 'reserved'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {selectedLayoutPlot.status}
+                      </span>
+                    </div>
+
+                    {/* Quick Nudge / Move Controls */}
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-700">Nudge Position (X, Y)</span>
+                        <span className="font-mono text-[11px] text-slate-500">
+                          X: {Math.round(selectedLayoutPlot.x || 100)}, Y: {Math.round(selectedLayoutPlot.y || 100)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 max-w-[180px] mx-auto">
+                        <div />
+                        <button
+                          onClick={() => handleNudgePlot(0, -5)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Up (-5px)"
+                        >
+                          <ArrowUp className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <div />
+                        <button
+                          onClick={() => handleNudgePlot(-5, 0)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Left (-5px)"
+                        >
+                          <ArrowLeft className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <button
+                          onClick={() => handleNudgePlot(0, 5)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Down (+5px)"
+                        >
+                          <ArrowDown className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <button
+                          onClick={() => handleNudgePlot(5, 0)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Right (+5px)"
+                        >
+                          <ArrowRight className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quick Resize / Shape Controls */}
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-700">Resize Shape (W, H)</span>
+                        <span className="font-mono text-[11px] text-slate-500">
+                          W: {Math.round(selectedLayoutPlot.width || 75)}px, H: {Math.round(selectedLayoutPlot.height || 55)}px
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <button
+                          onClick={() => handleResizePlot(5, 0)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          + Wider (+5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(-5, 0)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          - Narrower (-5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(0, 5)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          + Taller (+5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(0, -5)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          - Shorter (-5)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Form Fields for Specifications */}
+                    <div className="space-y-3 text-xs">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Status</label>
+                          <select
+                            value={selectedLayoutPlot.status}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                status: e.target.value as any,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                          >
+                            <option value="available">Available</option>
+                            <option value="reserved">Reserved</option>
+                            <option value="sold">Sold</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Facing</label>
+                          <select
+                            value={selectedLayoutPlot.facing}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                facing: e.target.value as any,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                          >
+                            <option value="East">East</option>
+                            <option value="West">West</option>
+                            <option value="North">North</option>
+                            <option value="South">South</option>
+                            <option value="North-East">North-East</option>
+                            <option value="Corner">Corner</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Area (Sq. Yds)</label>
+                          <input
+                            type="number"
+                            value={selectedLayoutPlot.area_sq_yards}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                area_sq_yards: Number(e.target.value),
+                                area_cents: Number((Number(e.target.value) / 48.4).toFixed(2)),
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-mono font-medium"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Dimensions</label>
+                          <input
+                            type="text"
+                            value={selectedLayoutPlot.dimensions}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                dimensions: e.target.value,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Road Width</label>
+                          <select
+                            value={selectedLayoutPlot.road_width}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                road_width: e.target.value,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
+                          >
+                            <option value="40 Feet">40 Feet Main</option>
+                            <option value="33 Feet">33 Feet Cross</option>
+                            <option value="60 Feet">60 Feet Highway</option>
+                          </select>
+                        </div>
+
+                        <div className="flex items-center pt-5">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(selectedLayoutPlot.is_corner)}
+                              onChange={(e) =>
+                                setSelectedLayoutPlot({
+                                  ...selectedLayoutPlot,
+                                  is_corner: e.target.checked,
+                                })
+                              }
+                              className="rounded text-surya-orange-500 focus:ring-surya-orange-500"
+                            />
+                            <span className="font-semibold text-slate-700">Corner Plot</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+                      <button
+                        onClick={handleSaveLayoutPlot}
+                        disabled={isSavingLayoutPlot}
+                        className="w-full py-2.5 rounded-xl bg-surya-navy-950 hover:bg-black text-white font-semibold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+                      >
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        <span>{isSavingLayoutPlot ? 'Saving to Supabase...' : 'Save & Sync to Cloud'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeletePlot(selectedLayoutPlot.plot_number)}
+                        className="w-full py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Plot #{selectedLayoutPlot.plot_number}</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-12 text-center text-slate-400 text-xs">
+                    <Map className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="font-medium text-slate-600">No Plot Selected</p>
+                    <p className="mt-1 text-[11px]">Click any plot rectangle on the map canvas to inspect and tune its shape.</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -1770,6 +2237,470 @@ export default function AdminDashboardPage() {
         )}
 
         {/* ============================================================== */}
+        {/* TAB: INTERACTIVE PLOTTED LAYOUT & SHAPE EDITOR */}
+        {/* ============================================================== */}
+        {activeTab === 'layout' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs uppercase font-bold text-emerald-700 tracking-wider">
+                    Cloud Realtime Synced
+                  </span>
+                </div>
+                <h3 className="font-serif text-2xl font-bold text-surya-navy-950 mt-1">
+                  Interactive Plotted Layout & Shape Editor
+                </h3>
+                <p className="text-slate-600 text-sm mt-0.5">
+                  Click any demarcated plot on the map to modify coordinates, shape boundaries, orientation, or dimensions in realtime.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 self-end md:self-auto">
+                <div className="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200 text-xs">
+                  <button
+                    onClick={() => setLayoutZoom((prev) => Math.min(prev + 0.15, 2.0))}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Zoom In"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setLayoutZoom((prev) => Math.max(prev - 0.15, 0.7))}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setLayoutZoom(1)}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Reset Zoom"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const nextNum = (plots.length + 1).toString();
+                    setNewPlotForm({
+                      plot_number: nextNum,
+                      area_sq_yards: 200,
+                      area_cents: 4.13,
+                      dimensions: "36' x 50'",
+                      facing: 'East',
+                      road_width: '40 Feet',
+                      status: 'available',
+                      is_corner: false,
+                      notes: '',
+                    });
+                    setShowAddPlotModal(true);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-surya-orange-500 hover:bg-surya-orange-600 text-white font-semibold text-xs shadow-md flex items-center gap-1.5 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add New Plot</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Layout Canvas + Inspector Split View */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left/Main: Visual SVG Canvas */}
+              <div className="lg:col-span-8 bg-white rounded-3xl p-4 sm:p-6 shadow-md border border-slate-200 overflow-hidden">
+                <div className="flex items-center justify-between mb-3 text-xs text-slate-500">
+                  <span>Interactive Map Preview (Click plot to select)</span>
+                  {selectedLayoutPlot && (
+                    <span className="font-bold text-surya-orange-600">
+                      Active: Plot #{selectedLayoutPlot.plot_number} (X: {Math.round(selectedLayoutPlot.x || 100)}, Y: {Math.round(selectedLayoutPlot.y || 100)})
+                    </span>
+                  )}
+                </div>
+
+                <div className="w-full overflow-x-auto overflow-y-hidden pb-4">
+                  <div
+                    style={{
+                      transform: `scale(${layoutZoom})`,
+                      transformOrigin: 'top left',
+                      transition: 'transform 0.2s ease-out',
+                      minWidth: '1150px',
+                    }}
+                    className="relative select-none"
+                  >
+                    <svg
+                      viewBox="0 0 1200 700"
+                      className="w-full h-auto drop-shadow-sm cursor-crosshair"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      {/* Background */}
+                      <rect x="20" y="20" width="1160" height="660" rx="16" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="3" />
+
+                      {/* Grand Entrance */}
+                      <rect x="30" y="30" width="160" height="70" rx="8" fill="#0B3064" stroke="#F26522" strokeWidth="2" />
+                      <text x="110" y="60" fill="#FFFFFF" fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                        GRAND ENTRANCE
+                      </text>
+                      <text x="110" y="76" fill="#F26522" fontSize="9" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                        ARCH & CABIN
+                      </text>
+
+                      {/* Roads */}
+                      <rect x="200" y="30" width="70" height="640" fill="#334155" opacity="0.9" />
+                      <line x1="235" y1="30" x2="235" y2="670" stroke="#F8FAFC" strokeWidth="2" strokeDasharray="10 10" />
+                      <text x="235" y="360" fill="#FFFFFF" fontSize="12" fontWeight="bold" textAnchor="middle" transform="rotate(-90 235 360)">
+                        40-FEET MAIN BOULEVARD
+                      </text>
+
+                      <rect x="20" y="275" width="1160" height="40" fill="#475569" opacity="0.85" />
+                      <line x1="20" y1="295" x2="1180" y2="295" stroke="#E2E8F0" strokeWidth="1.5" strokeDasharray="8 8" />
+
+                      <rect x="20" y="445" width="1160" height="40" fill="#475569" opacity="0.85" />
+                      <line x1="20" y1="465" x2="1180" y2="465" stroke="#E2E8F0" strokeWidth="1.5" strokeDasharray="8 8" />
+
+                      <rect x="715" y="30" width="45" height="640" fill="#475569" opacity="0.85" />
+
+                      {/* Central Park */}
+                      <rect x="770" y="275" width="345" height="150" rx="12" fill="#D1FAE5" stroke="#10B981" strokeWidth="2" strokeDasharray="4 4" />
+                      <text x="942" y="355" fill="#065F46" fontSize="13" fontWeight="bold" textAnchor="middle">
+                        CENTRAL PARK & WALKING TRACK
+                      </text>
+
+                      {/* Commercial Corner */}
+                      <rect x="20" y="630" width="180" height="40" rx="6" fill="#FEF3C7" stroke="#D97706" strokeWidth="1.5" />
+                      <text x="110" y="655" fill="#92400E" fontSize="10" fontWeight="bold" textAnchor="middle">
+                        COMMERCIAL
+                      </text>
+
+                      {/* Render All Plots on Canvas */}
+                      {plots.map((plot) => {
+                        const isSelected = selectedLayoutPlot?.plot_number === plot.plot_number;
+
+                        let fillColor = '#10B981';
+                        let strokeColor = '#047857';
+                        let textColor = '#FFFFFF';
+
+                        if (plot.status === 'reserved') {
+                          fillColor = '#F59E0B';
+                          strokeColor = '#B45309';
+                        } else if (plot.status === 'sold') {
+                          fillColor = '#64748B';
+                          strokeColor = '#334155';
+                          textColor = '#E2E8F0';
+                        }
+
+                        const x = plot.x !== undefined ? Number(plot.x) : 100;
+                        const y = plot.y !== undefined ? Number(plot.y) : 100;
+                        const width = plot.width !== undefined ? Number(plot.width) : 75;
+                        const height = plot.height !== undefined ? Number(plot.height) : 55;
+
+                        return (
+                          <g
+                            key={plot.id || plot.plot_number}
+                            onClick={() => setSelectedLayoutPlot(plot)}
+                            className="cursor-pointer"
+                          >
+                            {/* Plot Rectangle */}
+                            <rect
+                              x={x}
+                              y={y}
+                              width={width}
+                              height={height}
+                              rx="5"
+                              fill={isSelected ? '#3B82F6' : fillColor}
+                              stroke={isSelected ? '#F59E0B' : strokeColor}
+                              strokeWidth={isSelected ? '3.5' : '1.5'}
+                            />
+
+                            {/* Corner indicator */}
+                            {plot.is_corner && (
+                              <circle cx={x + width - 8} cy={y + 8} r="4" fill="#F26522" />
+                            )}
+
+                            {/* Plot Number */}
+                            <text
+                              x={x + width / 2}
+                              y={y + height / 2 - 2}
+                              fill={textColor}
+                              fontSize="11"
+                              fontWeight="bold"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                            >
+                              #{plot.plot_number}
+                            </text>
+
+                            {/* Subtitle Facing */}
+                            <text
+                              x={x + width / 2}
+                              y={y + height / 2 + 12}
+                              fill={textColor}
+                              fontSize="8"
+                              opacity="0.9"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                            >
+                              {plot.facing.slice(0, 1)} • {plot.area_sq_yards}Y
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Shape & Coordinates Inspector Panel */}
+              <div className="lg:col-span-4 bg-white rounded-3xl p-6 shadow-md border border-slate-200">
+                {selectedLayoutPlot ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                      <div>
+                        <span className="text-[11px] uppercase tracking-wider font-bold text-surya-orange-600 block">
+                          Plot Shape Inspector
+                        </span>
+                        <h4 className="font-serif text-2xl font-bold text-surya-navy-950">
+                          Plot #{selectedLayoutPlot.plot_number}
+                        </h4>
+                      </div>
+                      <span
+                        className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase ${
+                          selectedLayoutPlot.status === 'available'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : selectedLayoutPlot.status === 'reserved'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {selectedLayoutPlot.status}
+                      </span>
+                    </div>
+
+                    {/* Quick Nudge / Move Controls */}
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-700">Nudge Position (X, Y)</span>
+                        <span className="font-mono text-[11px] text-slate-500">
+                          X: {Math.round(selectedLayoutPlot.x || 100)}, Y: {Math.round(selectedLayoutPlot.y || 100)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 max-w-[180px] mx-auto">
+                        <div />
+                        <button
+                          onClick={() => handleNudgePlot(0, -5)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Up (-5px)"
+                        >
+                          <ArrowUp className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <div />
+                        <button
+                          onClick={() => handleNudgePlot(-5, 0)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Left (-5px)"
+                        >
+                          <ArrowLeft className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <button
+                          onClick={() => handleNudgePlot(0, 5)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Down (+5px)"
+                        >
+                          <ArrowDown className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <button
+                          onClick={() => handleNudgePlot(5, 0)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Right (+5px)"
+                        >
+                          <ArrowRight className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quick Resize / Shape Controls */}
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-700">Resize Shape (W, H)</span>
+                        <span className="font-mono text-[11px] text-slate-500">
+                          W: {Math.round(selectedLayoutPlot.width || 75)}px, H: {Math.round(selectedLayoutPlot.height || 55)}px
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <button
+                          onClick={() => handleResizePlot(5, 0)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          + Wider (+5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(-5, 0)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          - Narrower (-5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(0, 5)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          + Taller (+5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(0, -5)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          - Shorter (-5)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Form Fields for Specifications */}
+                    <div className="space-y-3 text-xs">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Status</label>
+                          <select
+                            value={selectedLayoutPlot.status}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                status: e.target.value as any,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                          >
+                            <option value="available">Available</option>
+                            <option value="reserved">Reserved</option>
+                            <option value="sold">Sold</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Facing</label>
+                          <select
+                            value={selectedLayoutPlot.facing}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                facing: e.target.value as any,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                          >
+                            <option value="East">East</option>
+                            <option value="West">West</option>
+                            <option value="North">North</option>
+                            <option value="South">South</option>
+                            <option value="North-East">North-East</option>
+                            <option value="Corner">Corner</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Area (Sq. Yds)</label>
+                          <input
+                            type="number"
+                            value={selectedLayoutPlot.area_sq_yards}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                area_sq_yards: Number(e.target.value),
+                                area_cents: Number((Number(e.target.value) / 48.4).toFixed(2)),
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-mono font-medium"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Dimensions</label>
+                          <input
+                            type="text"
+                            value={selectedLayoutPlot.dimensions}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                dimensions: e.target.value,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Road Width</label>
+                          <select
+                            value={selectedLayoutPlot.road_width}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                road_width: e.target.value,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
+                          >
+                            <option value="40 Feet">40 Feet Main</option>
+                            <option value="33 Feet">33 Feet Cross</option>
+                            <option value="60 Feet">60 Feet Highway</option>
+                          </select>
+                        </div>
+
+                        <div className="flex items-center pt-5">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(selectedLayoutPlot.is_corner)}
+                              onChange={(e) =>
+                                setSelectedLayoutPlot({
+                                  ...selectedLayoutPlot,
+                                  is_corner: e.target.checked,
+                                })
+                              }
+                              className="rounded text-surya-orange-500 focus:ring-surya-orange-500"
+                            />
+                            <span className="font-semibold text-slate-700">Corner Plot</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+                      <button
+                        onClick={handleSaveLayoutPlot}
+                        disabled={isSavingLayoutPlot}
+                        className="w-full py-2.5 rounded-xl bg-surya-navy-950 hover:bg-black text-white font-semibold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+                      >
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        <span>{isSavingLayoutPlot ? 'Saving to Supabase...' : 'Save & Sync to Cloud'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeletePlot(selectedLayoutPlot.plot_number)}
+                        className="w-full py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Plot #{selectedLayoutPlot.plot_number}</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-12 text-center text-slate-400 text-xs">
+                    <Map className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="font-medium text-slate-600">No Plot Selected</p>
+                    <p className="mt-1 text-[11px]">Click any plot rectangle on the map canvas to inspect and tune its shape.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
         {/* TAB: EDITABLE SETTINGS & MOBILE NUMBERS */}
         {/* ============================================================== */}
         {activeTab === 'settings' && (
@@ -1934,6 +2865,470 @@ export default function AdminDashboardPage() {
         )}
 
         {/* ============================================================== */}
+        {/* TAB: INTERACTIVE PLOTTED LAYOUT & SHAPE EDITOR */}
+        {/* ============================================================== */}
+        {activeTab === 'layout' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs uppercase font-bold text-emerald-700 tracking-wider">
+                    Cloud Realtime Synced
+                  </span>
+                </div>
+                <h3 className="font-serif text-2xl font-bold text-surya-navy-950 mt-1">
+                  Interactive Plotted Layout & Shape Editor
+                </h3>
+                <p className="text-slate-600 text-sm mt-0.5">
+                  Click any demarcated plot on the map to modify coordinates, shape boundaries, orientation, or dimensions in realtime.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 self-end md:self-auto">
+                <div className="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200 text-xs">
+                  <button
+                    onClick={() => setLayoutZoom((prev) => Math.min(prev + 0.15, 2.0))}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Zoom In"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setLayoutZoom((prev) => Math.max(prev - 0.15, 0.7))}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setLayoutZoom(1)}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Reset Zoom"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const nextNum = (plots.length + 1).toString();
+                    setNewPlotForm({
+                      plot_number: nextNum,
+                      area_sq_yards: 200,
+                      area_cents: 4.13,
+                      dimensions: "36' x 50'",
+                      facing: 'East',
+                      road_width: '40 Feet',
+                      status: 'available',
+                      is_corner: false,
+                      notes: '',
+                    });
+                    setShowAddPlotModal(true);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-surya-orange-500 hover:bg-surya-orange-600 text-white font-semibold text-xs shadow-md flex items-center gap-1.5 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add New Plot</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Layout Canvas + Inspector Split View */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left/Main: Visual SVG Canvas */}
+              <div className="lg:col-span-8 bg-white rounded-3xl p-4 sm:p-6 shadow-md border border-slate-200 overflow-hidden">
+                <div className="flex items-center justify-between mb-3 text-xs text-slate-500">
+                  <span>Interactive Map Preview (Click plot to select)</span>
+                  {selectedLayoutPlot && (
+                    <span className="font-bold text-surya-orange-600">
+                      Active: Plot #{selectedLayoutPlot.plot_number} (X: {Math.round(selectedLayoutPlot.x || 100)}, Y: {Math.round(selectedLayoutPlot.y || 100)})
+                    </span>
+                  )}
+                </div>
+
+                <div className="w-full overflow-x-auto overflow-y-hidden pb-4">
+                  <div
+                    style={{
+                      transform: `scale(${layoutZoom})`,
+                      transformOrigin: 'top left',
+                      transition: 'transform 0.2s ease-out',
+                      minWidth: '1150px',
+                    }}
+                    className="relative select-none"
+                  >
+                    <svg
+                      viewBox="0 0 1200 700"
+                      className="w-full h-auto drop-shadow-sm cursor-crosshair"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      {/* Background */}
+                      <rect x="20" y="20" width="1160" height="660" rx="16" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="3" />
+
+                      {/* Grand Entrance */}
+                      <rect x="30" y="30" width="160" height="70" rx="8" fill="#0B3064" stroke="#F26522" strokeWidth="2" />
+                      <text x="110" y="60" fill="#FFFFFF" fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                        GRAND ENTRANCE
+                      </text>
+                      <text x="110" y="76" fill="#F26522" fontSize="9" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                        ARCH & CABIN
+                      </text>
+
+                      {/* Roads */}
+                      <rect x="200" y="30" width="70" height="640" fill="#334155" opacity="0.9" />
+                      <line x1="235" y1="30" x2="235" y2="670" stroke="#F8FAFC" strokeWidth="2" strokeDasharray="10 10" />
+                      <text x="235" y="360" fill="#FFFFFF" fontSize="12" fontWeight="bold" textAnchor="middle" transform="rotate(-90 235 360)">
+                        40-FEET MAIN BOULEVARD
+                      </text>
+
+                      <rect x="20" y="275" width="1160" height="40" fill="#475569" opacity="0.85" />
+                      <line x1="20" y1="295" x2="1180" y2="295" stroke="#E2E8F0" strokeWidth="1.5" strokeDasharray="8 8" />
+
+                      <rect x="20" y="445" width="1160" height="40" fill="#475569" opacity="0.85" />
+                      <line x1="20" y1="465" x2="1180" y2="465" stroke="#E2E8F0" strokeWidth="1.5" strokeDasharray="8 8" />
+
+                      <rect x="715" y="30" width="45" height="640" fill="#475569" opacity="0.85" />
+
+                      {/* Central Park */}
+                      <rect x="770" y="275" width="345" height="150" rx="12" fill="#D1FAE5" stroke="#10B981" strokeWidth="2" strokeDasharray="4 4" />
+                      <text x="942" y="355" fill="#065F46" fontSize="13" fontWeight="bold" textAnchor="middle">
+                        CENTRAL PARK & WALKING TRACK
+                      </text>
+
+                      {/* Commercial Corner */}
+                      <rect x="20" y="630" width="180" height="40" rx="6" fill="#FEF3C7" stroke="#D97706" strokeWidth="1.5" />
+                      <text x="110" y="655" fill="#92400E" fontSize="10" fontWeight="bold" textAnchor="middle">
+                        COMMERCIAL
+                      </text>
+
+                      {/* Render All Plots on Canvas */}
+                      {plots.map((plot) => {
+                        const isSelected = selectedLayoutPlot?.plot_number === plot.plot_number;
+
+                        let fillColor = '#10B981';
+                        let strokeColor = '#047857';
+                        let textColor = '#FFFFFF';
+
+                        if (plot.status === 'reserved') {
+                          fillColor = '#F59E0B';
+                          strokeColor = '#B45309';
+                        } else if (plot.status === 'sold') {
+                          fillColor = '#64748B';
+                          strokeColor = '#334155';
+                          textColor = '#E2E8F0';
+                        }
+
+                        const x = plot.x !== undefined ? Number(plot.x) : 100;
+                        const y = plot.y !== undefined ? Number(plot.y) : 100;
+                        const width = plot.width !== undefined ? Number(plot.width) : 75;
+                        const height = plot.height !== undefined ? Number(plot.height) : 55;
+
+                        return (
+                          <g
+                            key={plot.id || plot.plot_number}
+                            onClick={() => setSelectedLayoutPlot(plot)}
+                            className="cursor-pointer"
+                          >
+                            {/* Plot Rectangle */}
+                            <rect
+                              x={x}
+                              y={y}
+                              width={width}
+                              height={height}
+                              rx="5"
+                              fill={isSelected ? '#3B82F6' : fillColor}
+                              stroke={isSelected ? '#F59E0B' : strokeColor}
+                              strokeWidth={isSelected ? '3.5' : '1.5'}
+                            />
+
+                            {/* Corner indicator */}
+                            {plot.is_corner && (
+                              <circle cx={x + width - 8} cy={y + 8} r="4" fill="#F26522" />
+                            )}
+
+                            {/* Plot Number */}
+                            <text
+                              x={x + width / 2}
+                              y={y + height / 2 - 2}
+                              fill={textColor}
+                              fontSize="11"
+                              fontWeight="bold"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                            >
+                              #{plot.plot_number}
+                            </text>
+
+                            {/* Subtitle Facing */}
+                            <text
+                              x={x + width / 2}
+                              y={y + height / 2 + 12}
+                              fill={textColor}
+                              fontSize="8"
+                              opacity="0.9"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                            >
+                              {plot.facing.slice(0, 1)} • {plot.area_sq_yards}Y
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Shape & Coordinates Inspector Panel */}
+              <div className="lg:col-span-4 bg-white rounded-3xl p-6 shadow-md border border-slate-200">
+                {selectedLayoutPlot ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                      <div>
+                        <span className="text-[11px] uppercase tracking-wider font-bold text-surya-orange-600 block">
+                          Plot Shape Inspector
+                        </span>
+                        <h4 className="font-serif text-2xl font-bold text-surya-navy-950">
+                          Plot #{selectedLayoutPlot.plot_number}
+                        </h4>
+                      </div>
+                      <span
+                        className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase ${
+                          selectedLayoutPlot.status === 'available'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : selectedLayoutPlot.status === 'reserved'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {selectedLayoutPlot.status}
+                      </span>
+                    </div>
+
+                    {/* Quick Nudge / Move Controls */}
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-700">Nudge Position (X, Y)</span>
+                        <span className="font-mono text-[11px] text-slate-500">
+                          X: {Math.round(selectedLayoutPlot.x || 100)}, Y: {Math.round(selectedLayoutPlot.y || 100)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 max-w-[180px] mx-auto">
+                        <div />
+                        <button
+                          onClick={() => handleNudgePlot(0, -5)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Up (-5px)"
+                        >
+                          <ArrowUp className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <div />
+                        <button
+                          onClick={() => handleNudgePlot(-5, 0)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Left (-5px)"
+                        >
+                          <ArrowLeft className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <button
+                          onClick={() => handleNudgePlot(0, 5)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Down (+5px)"
+                        >
+                          <ArrowDown className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <button
+                          onClick={() => handleNudgePlot(5, 0)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Right (+5px)"
+                        >
+                          <ArrowRight className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quick Resize / Shape Controls */}
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-700">Resize Shape (W, H)</span>
+                        <span className="font-mono text-[11px] text-slate-500">
+                          W: {Math.round(selectedLayoutPlot.width || 75)}px, H: {Math.round(selectedLayoutPlot.height || 55)}px
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <button
+                          onClick={() => handleResizePlot(5, 0)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          + Wider (+5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(-5, 0)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          - Narrower (-5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(0, 5)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          + Taller (+5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(0, -5)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          - Shorter (-5)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Form Fields for Specifications */}
+                    <div className="space-y-3 text-xs">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Status</label>
+                          <select
+                            value={selectedLayoutPlot.status}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                status: e.target.value as any,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                          >
+                            <option value="available">Available</option>
+                            <option value="reserved">Reserved</option>
+                            <option value="sold">Sold</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Facing</label>
+                          <select
+                            value={selectedLayoutPlot.facing}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                facing: e.target.value as any,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                          >
+                            <option value="East">East</option>
+                            <option value="West">West</option>
+                            <option value="North">North</option>
+                            <option value="South">South</option>
+                            <option value="North-East">North-East</option>
+                            <option value="Corner">Corner</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Area (Sq. Yds)</label>
+                          <input
+                            type="number"
+                            value={selectedLayoutPlot.area_sq_yards}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                area_sq_yards: Number(e.target.value),
+                                area_cents: Number((Number(e.target.value) / 48.4).toFixed(2)),
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-mono font-medium"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Dimensions</label>
+                          <input
+                            type="text"
+                            value={selectedLayoutPlot.dimensions}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                dimensions: e.target.value,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Road Width</label>
+                          <select
+                            value={selectedLayoutPlot.road_width}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                road_width: e.target.value,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
+                          >
+                            <option value="40 Feet">40 Feet Main</option>
+                            <option value="33 Feet">33 Feet Cross</option>
+                            <option value="60 Feet">60 Feet Highway</option>
+                          </select>
+                        </div>
+
+                        <div className="flex items-center pt-5">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(selectedLayoutPlot.is_corner)}
+                              onChange={(e) =>
+                                setSelectedLayoutPlot({
+                                  ...selectedLayoutPlot,
+                                  is_corner: e.target.checked,
+                                })
+                              }
+                              className="rounded text-surya-orange-500 focus:ring-surya-orange-500"
+                            />
+                            <span className="font-semibold text-slate-700">Corner Plot</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+                      <button
+                        onClick={handleSaveLayoutPlot}
+                        disabled={isSavingLayoutPlot}
+                        className="w-full py-2.5 rounded-xl bg-surya-navy-950 hover:bg-black text-white font-semibold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+                      >
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        <span>{isSavingLayoutPlot ? 'Saving to Supabase...' : 'Save & Sync to Cloud'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeletePlot(selectedLayoutPlot.plot_number)}
+                        className="w-full py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Plot #{selectedLayoutPlot.plot_number}</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-12 text-center text-slate-400 text-xs">
+                    <Map className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="font-medium text-slate-600">No Plot Selected</p>
+                    <p className="mt-1 text-[11px]">Click any plot rectangle on the map canvas to inspect and tune its shape.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
         {/* TAB 3: SITE VISITS MANAGEMENT */}
         {/* ============================================================== */}
         {activeTab === 'visits' && (
@@ -2049,6 +3444,470 @@ export default function AdminDashboardPage() {
         )}
 
         {/* ============================================================== */}
+        {/* TAB: INTERACTIVE PLOTTED LAYOUT & SHAPE EDITOR */}
+        {/* ============================================================== */}
+        {activeTab === 'layout' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs uppercase font-bold text-emerald-700 tracking-wider">
+                    Cloud Realtime Synced
+                  </span>
+                </div>
+                <h3 className="font-serif text-2xl font-bold text-surya-navy-950 mt-1">
+                  Interactive Plotted Layout & Shape Editor
+                </h3>
+                <p className="text-slate-600 text-sm mt-0.5">
+                  Click any demarcated plot on the map to modify coordinates, shape boundaries, orientation, or dimensions in realtime.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 self-end md:self-auto">
+                <div className="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200 text-xs">
+                  <button
+                    onClick={() => setLayoutZoom((prev) => Math.min(prev + 0.15, 2.0))}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Zoom In"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setLayoutZoom((prev) => Math.max(prev - 0.15, 0.7))}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setLayoutZoom(1)}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Reset Zoom"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const nextNum = (plots.length + 1).toString();
+                    setNewPlotForm({
+                      plot_number: nextNum,
+                      area_sq_yards: 200,
+                      area_cents: 4.13,
+                      dimensions: "36' x 50'",
+                      facing: 'East',
+                      road_width: '40 Feet',
+                      status: 'available',
+                      is_corner: false,
+                      notes: '',
+                    });
+                    setShowAddPlotModal(true);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-surya-orange-500 hover:bg-surya-orange-600 text-white font-semibold text-xs shadow-md flex items-center gap-1.5 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add New Plot</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Layout Canvas + Inspector Split View */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left/Main: Visual SVG Canvas */}
+              <div className="lg:col-span-8 bg-white rounded-3xl p-4 sm:p-6 shadow-md border border-slate-200 overflow-hidden">
+                <div className="flex items-center justify-between mb-3 text-xs text-slate-500">
+                  <span>Interactive Map Preview (Click plot to select)</span>
+                  {selectedLayoutPlot && (
+                    <span className="font-bold text-surya-orange-600">
+                      Active: Plot #{selectedLayoutPlot.plot_number} (X: {Math.round(selectedLayoutPlot.x || 100)}, Y: {Math.round(selectedLayoutPlot.y || 100)})
+                    </span>
+                  )}
+                </div>
+
+                <div className="w-full overflow-x-auto overflow-y-hidden pb-4">
+                  <div
+                    style={{
+                      transform: `scale(${layoutZoom})`,
+                      transformOrigin: 'top left',
+                      transition: 'transform 0.2s ease-out',
+                      minWidth: '1150px',
+                    }}
+                    className="relative select-none"
+                  >
+                    <svg
+                      viewBox="0 0 1200 700"
+                      className="w-full h-auto drop-shadow-sm cursor-crosshair"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      {/* Background */}
+                      <rect x="20" y="20" width="1160" height="660" rx="16" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="3" />
+
+                      {/* Grand Entrance */}
+                      <rect x="30" y="30" width="160" height="70" rx="8" fill="#0B3064" stroke="#F26522" strokeWidth="2" />
+                      <text x="110" y="60" fill="#FFFFFF" fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                        GRAND ENTRANCE
+                      </text>
+                      <text x="110" y="76" fill="#F26522" fontSize="9" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                        ARCH & CABIN
+                      </text>
+
+                      {/* Roads */}
+                      <rect x="200" y="30" width="70" height="640" fill="#334155" opacity="0.9" />
+                      <line x1="235" y1="30" x2="235" y2="670" stroke="#F8FAFC" strokeWidth="2" strokeDasharray="10 10" />
+                      <text x="235" y="360" fill="#FFFFFF" fontSize="12" fontWeight="bold" textAnchor="middle" transform="rotate(-90 235 360)">
+                        40-FEET MAIN BOULEVARD
+                      </text>
+
+                      <rect x="20" y="275" width="1160" height="40" fill="#475569" opacity="0.85" />
+                      <line x1="20" y1="295" x2="1180" y2="295" stroke="#E2E8F0" strokeWidth="1.5" strokeDasharray="8 8" />
+
+                      <rect x="20" y="445" width="1160" height="40" fill="#475569" opacity="0.85" />
+                      <line x1="20" y1="465" x2="1180" y2="465" stroke="#E2E8F0" strokeWidth="1.5" strokeDasharray="8 8" />
+
+                      <rect x="715" y="30" width="45" height="640" fill="#475569" opacity="0.85" />
+
+                      {/* Central Park */}
+                      <rect x="770" y="275" width="345" height="150" rx="12" fill="#D1FAE5" stroke="#10B981" strokeWidth="2" strokeDasharray="4 4" />
+                      <text x="942" y="355" fill="#065F46" fontSize="13" fontWeight="bold" textAnchor="middle">
+                        CENTRAL PARK & WALKING TRACK
+                      </text>
+
+                      {/* Commercial Corner */}
+                      <rect x="20" y="630" width="180" height="40" rx="6" fill="#FEF3C7" stroke="#D97706" strokeWidth="1.5" />
+                      <text x="110" y="655" fill="#92400E" fontSize="10" fontWeight="bold" textAnchor="middle">
+                        COMMERCIAL
+                      </text>
+
+                      {/* Render All Plots on Canvas */}
+                      {plots.map((plot) => {
+                        const isSelected = selectedLayoutPlot?.plot_number === plot.plot_number;
+
+                        let fillColor = '#10B981';
+                        let strokeColor = '#047857';
+                        let textColor = '#FFFFFF';
+
+                        if (plot.status === 'reserved') {
+                          fillColor = '#F59E0B';
+                          strokeColor = '#B45309';
+                        } else if (plot.status === 'sold') {
+                          fillColor = '#64748B';
+                          strokeColor = '#334155';
+                          textColor = '#E2E8F0';
+                        }
+
+                        const x = plot.x !== undefined ? Number(plot.x) : 100;
+                        const y = plot.y !== undefined ? Number(plot.y) : 100;
+                        const width = plot.width !== undefined ? Number(plot.width) : 75;
+                        const height = plot.height !== undefined ? Number(plot.height) : 55;
+
+                        return (
+                          <g
+                            key={plot.id || plot.plot_number}
+                            onClick={() => setSelectedLayoutPlot(plot)}
+                            className="cursor-pointer"
+                          >
+                            {/* Plot Rectangle */}
+                            <rect
+                              x={x}
+                              y={y}
+                              width={width}
+                              height={height}
+                              rx="5"
+                              fill={isSelected ? '#3B82F6' : fillColor}
+                              stroke={isSelected ? '#F59E0B' : strokeColor}
+                              strokeWidth={isSelected ? '3.5' : '1.5'}
+                            />
+
+                            {/* Corner indicator */}
+                            {plot.is_corner && (
+                              <circle cx={x + width - 8} cy={y + 8} r="4" fill="#F26522" />
+                            )}
+
+                            {/* Plot Number */}
+                            <text
+                              x={x + width / 2}
+                              y={y + height / 2 - 2}
+                              fill={textColor}
+                              fontSize="11"
+                              fontWeight="bold"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                            >
+                              #{plot.plot_number}
+                            </text>
+
+                            {/* Subtitle Facing */}
+                            <text
+                              x={x + width / 2}
+                              y={y + height / 2 + 12}
+                              fill={textColor}
+                              fontSize="8"
+                              opacity="0.9"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                            >
+                              {plot.facing.slice(0, 1)} • {plot.area_sq_yards}Y
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Shape & Coordinates Inspector Panel */}
+              <div className="lg:col-span-4 bg-white rounded-3xl p-6 shadow-md border border-slate-200">
+                {selectedLayoutPlot ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                      <div>
+                        <span className="text-[11px] uppercase tracking-wider font-bold text-surya-orange-600 block">
+                          Plot Shape Inspector
+                        </span>
+                        <h4 className="font-serif text-2xl font-bold text-surya-navy-950">
+                          Plot #{selectedLayoutPlot.plot_number}
+                        </h4>
+                      </div>
+                      <span
+                        className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase ${
+                          selectedLayoutPlot.status === 'available'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : selectedLayoutPlot.status === 'reserved'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {selectedLayoutPlot.status}
+                      </span>
+                    </div>
+
+                    {/* Quick Nudge / Move Controls */}
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-700">Nudge Position (X, Y)</span>
+                        <span className="font-mono text-[11px] text-slate-500">
+                          X: {Math.round(selectedLayoutPlot.x || 100)}, Y: {Math.round(selectedLayoutPlot.y || 100)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 max-w-[180px] mx-auto">
+                        <div />
+                        <button
+                          onClick={() => handleNudgePlot(0, -5)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Up (-5px)"
+                        >
+                          <ArrowUp className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <div />
+                        <button
+                          onClick={() => handleNudgePlot(-5, 0)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Left (-5px)"
+                        >
+                          <ArrowLeft className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <button
+                          onClick={() => handleNudgePlot(0, 5)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Down (+5px)"
+                        >
+                          <ArrowDown className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <button
+                          onClick={() => handleNudgePlot(5, 0)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Right (+5px)"
+                        >
+                          <ArrowRight className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quick Resize / Shape Controls */}
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-700">Resize Shape (W, H)</span>
+                        <span className="font-mono text-[11px] text-slate-500">
+                          W: {Math.round(selectedLayoutPlot.width || 75)}px, H: {Math.round(selectedLayoutPlot.height || 55)}px
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <button
+                          onClick={() => handleResizePlot(5, 0)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          + Wider (+5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(-5, 0)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          - Narrower (-5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(0, 5)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          + Taller (+5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(0, -5)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          - Shorter (-5)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Form Fields for Specifications */}
+                    <div className="space-y-3 text-xs">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Status</label>
+                          <select
+                            value={selectedLayoutPlot.status}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                status: e.target.value as any,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                          >
+                            <option value="available">Available</option>
+                            <option value="reserved">Reserved</option>
+                            <option value="sold">Sold</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Facing</label>
+                          <select
+                            value={selectedLayoutPlot.facing}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                facing: e.target.value as any,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                          >
+                            <option value="East">East</option>
+                            <option value="West">West</option>
+                            <option value="North">North</option>
+                            <option value="South">South</option>
+                            <option value="North-East">North-East</option>
+                            <option value="Corner">Corner</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Area (Sq. Yds)</label>
+                          <input
+                            type="number"
+                            value={selectedLayoutPlot.area_sq_yards}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                area_sq_yards: Number(e.target.value),
+                                area_cents: Number((Number(e.target.value) / 48.4).toFixed(2)),
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-mono font-medium"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Dimensions</label>
+                          <input
+                            type="text"
+                            value={selectedLayoutPlot.dimensions}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                dimensions: e.target.value,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Road Width</label>
+                          <select
+                            value={selectedLayoutPlot.road_width}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                road_width: e.target.value,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
+                          >
+                            <option value="40 Feet">40 Feet Main</option>
+                            <option value="33 Feet">33 Feet Cross</option>
+                            <option value="60 Feet">60 Feet Highway</option>
+                          </select>
+                        </div>
+
+                        <div className="flex items-center pt-5">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(selectedLayoutPlot.is_corner)}
+                              onChange={(e) =>
+                                setSelectedLayoutPlot({
+                                  ...selectedLayoutPlot,
+                                  is_corner: e.target.checked,
+                                })
+                              }
+                              className="rounded text-surya-orange-500 focus:ring-surya-orange-500"
+                            />
+                            <span className="font-semibold text-slate-700">Corner Plot</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+                      <button
+                        onClick={handleSaveLayoutPlot}
+                        disabled={isSavingLayoutPlot}
+                        className="w-full py-2.5 rounded-xl bg-surya-navy-950 hover:bg-black text-white font-semibold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+                      >
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        <span>{isSavingLayoutPlot ? 'Saving to Supabase...' : 'Save & Sync to Cloud'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeletePlot(selectedLayoutPlot.plot_number)}
+                        className="w-full py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Plot #{selectedLayoutPlot.plot_number}</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-12 text-center text-slate-400 text-xs">
+                    <Map className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="font-medium text-slate-600">No Plot Selected</p>
+                    <p className="mt-1 text-[11px]">Click any plot rectangle on the map canvas to inspect and tune its shape.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
         {/* TAB 4: ENQUIRIES MANAGEMENT */}
         {/* ============================================================== */}
         {activeTab === 'enquiries' && (
@@ -2140,6 +3999,470 @@ export default function AdminDashboardPage() {
         )}
 
         {/* ============================================================== */}
+        {/* TAB: INTERACTIVE PLOTTED LAYOUT & SHAPE EDITOR */}
+        {/* ============================================================== */}
+        {activeTab === 'layout' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs uppercase font-bold text-emerald-700 tracking-wider">
+                    Cloud Realtime Synced
+                  </span>
+                </div>
+                <h3 className="font-serif text-2xl font-bold text-surya-navy-950 mt-1">
+                  Interactive Plotted Layout & Shape Editor
+                </h3>
+                <p className="text-slate-600 text-sm mt-0.5">
+                  Click any demarcated plot on the map to modify coordinates, shape boundaries, orientation, or dimensions in realtime.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 self-end md:self-auto">
+                <div className="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200 text-xs">
+                  <button
+                    onClick={() => setLayoutZoom((prev) => Math.min(prev + 0.15, 2.0))}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Zoom In"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setLayoutZoom((prev) => Math.max(prev - 0.15, 0.7))}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setLayoutZoom(1)}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Reset Zoom"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const nextNum = (plots.length + 1).toString();
+                    setNewPlotForm({
+                      plot_number: nextNum,
+                      area_sq_yards: 200,
+                      area_cents: 4.13,
+                      dimensions: "36' x 50'",
+                      facing: 'East',
+                      road_width: '40 Feet',
+                      status: 'available',
+                      is_corner: false,
+                      notes: '',
+                    });
+                    setShowAddPlotModal(true);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-surya-orange-500 hover:bg-surya-orange-600 text-white font-semibold text-xs shadow-md flex items-center gap-1.5 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add New Plot</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Layout Canvas + Inspector Split View */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left/Main: Visual SVG Canvas */}
+              <div className="lg:col-span-8 bg-white rounded-3xl p-4 sm:p-6 shadow-md border border-slate-200 overflow-hidden">
+                <div className="flex items-center justify-between mb-3 text-xs text-slate-500">
+                  <span>Interactive Map Preview (Click plot to select)</span>
+                  {selectedLayoutPlot && (
+                    <span className="font-bold text-surya-orange-600">
+                      Active: Plot #{selectedLayoutPlot.plot_number} (X: {Math.round(selectedLayoutPlot.x || 100)}, Y: {Math.round(selectedLayoutPlot.y || 100)})
+                    </span>
+                  )}
+                </div>
+
+                <div className="w-full overflow-x-auto overflow-y-hidden pb-4">
+                  <div
+                    style={{
+                      transform: `scale(${layoutZoom})`,
+                      transformOrigin: 'top left',
+                      transition: 'transform 0.2s ease-out',
+                      minWidth: '1150px',
+                    }}
+                    className="relative select-none"
+                  >
+                    <svg
+                      viewBox="0 0 1200 700"
+                      className="w-full h-auto drop-shadow-sm cursor-crosshair"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      {/* Background */}
+                      <rect x="20" y="20" width="1160" height="660" rx="16" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="3" />
+
+                      {/* Grand Entrance */}
+                      <rect x="30" y="30" width="160" height="70" rx="8" fill="#0B3064" stroke="#F26522" strokeWidth="2" />
+                      <text x="110" y="60" fill="#FFFFFF" fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                        GRAND ENTRANCE
+                      </text>
+                      <text x="110" y="76" fill="#F26522" fontSize="9" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                        ARCH & CABIN
+                      </text>
+
+                      {/* Roads */}
+                      <rect x="200" y="30" width="70" height="640" fill="#334155" opacity="0.9" />
+                      <line x1="235" y1="30" x2="235" y2="670" stroke="#F8FAFC" strokeWidth="2" strokeDasharray="10 10" />
+                      <text x="235" y="360" fill="#FFFFFF" fontSize="12" fontWeight="bold" textAnchor="middle" transform="rotate(-90 235 360)">
+                        40-FEET MAIN BOULEVARD
+                      </text>
+
+                      <rect x="20" y="275" width="1160" height="40" fill="#475569" opacity="0.85" />
+                      <line x1="20" y1="295" x2="1180" y2="295" stroke="#E2E8F0" strokeWidth="1.5" strokeDasharray="8 8" />
+
+                      <rect x="20" y="445" width="1160" height="40" fill="#475569" opacity="0.85" />
+                      <line x1="20" y1="465" x2="1180" y2="465" stroke="#E2E8F0" strokeWidth="1.5" strokeDasharray="8 8" />
+
+                      <rect x="715" y="30" width="45" height="640" fill="#475569" opacity="0.85" />
+
+                      {/* Central Park */}
+                      <rect x="770" y="275" width="345" height="150" rx="12" fill="#D1FAE5" stroke="#10B981" strokeWidth="2" strokeDasharray="4 4" />
+                      <text x="942" y="355" fill="#065F46" fontSize="13" fontWeight="bold" textAnchor="middle">
+                        CENTRAL PARK & WALKING TRACK
+                      </text>
+
+                      {/* Commercial Corner */}
+                      <rect x="20" y="630" width="180" height="40" rx="6" fill="#FEF3C7" stroke="#D97706" strokeWidth="1.5" />
+                      <text x="110" y="655" fill="#92400E" fontSize="10" fontWeight="bold" textAnchor="middle">
+                        COMMERCIAL
+                      </text>
+
+                      {/* Render All Plots on Canvas */}
+                      {plots.map((plot) => {
+                        const isSelected = selectedLayoutPlot?.plot_number === plot.plot_number;
+
+                        let fillColor = '#10B981';
+                        let strokeColor = '#047857';
+                        let textColor = '#FFFFFF';
+
+                        if (plot.status === 'reserved') {
+                          fillColor = '#F59E0B';
+                          strokeColor = '#B45309';
+                        } else if (plot.status === 'sold') {
+                          fillColor = '#64748B';
+                          strokeColor = '#334155';
+                          textColor = '#E2E8F0';
+                        }
+
+                        const x = plot.x !== undefined ? Number(plot.x) : 100;
+                        const y = plot.y !== undefined ? Number(plot.y) : 100;
+                        const width = plot.width !== undefined ? Number(plot.width) : 75;
+                        const height = plot.height !== undefined ? Number(plot.height) : 55;
+
+                        return (
+                          <g
+                            key={plot.id || plot.plot_number}
+                            onClick={() => setSelectedLayoutPlot(plot)}
+                            className="cursor-pointer"
+                          >
+                            {/* Plot Rectangle */}
+                            <rect
+                              x={x}
+                              y={y}
+                              width={width}
+                              height={height}
+                              rx="5"
+                              fill={isSelected ? '#3B82F6' : fillColor}
+                              stroke={isSelected ? '#F59E0B' : strokeColor}
+                              strokeWidth={isSelected ? '3.5' : '1.5'}
+                            />
+
+                            {/* Corner indicator */}
+                            {plot.is_corner && (
+                              <circle cx={x + width - 8} cy={y + 8} r="4" fill="#F26522" />
+                            )}
+
+                            {/* Plot Number */}
+                            <text
+                              x={x + width / 2}
+                              y={y + height / 2 - 2}
+                              fill={textColor}
+                              fontSize="11"
+                              fontWeight="bold"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                            >
+                              #{plot.plot_number}
+                            </text>
+
+                            {/* Subtitle Facing */}
+                            <text
+                              x={x + width / 2}
+                              y={y + height / 2 + 12}
+                              fill={textColor}
+                              fontSize="8"
+                              opacity="0.9"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                            >
+                              {plot.facing.slice(0, 1)} • {plot.area_sq_yards}Y
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Shape & Coordinates Inspector Panel */}
+              <div className="lg:col-span-4 bg-white rounded-3xl p-6 shadow-md border border-slate-200">
+                {selectedLayoutPlot ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                      <div>
+                        <span className="text-[11px] uppercase tracking-wider font-bold text-surya-orange-600 block">
+                          Plot Shape Inspector
+                        </span>
+                        <h4 className="font-serif text-2xl font-bold text-surya-navy-950">
+                          Plot #{selectedLayoutPlot.plot_number}
+                        </h4>
+                      </div>
+                      <span
+                        className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase ${
+                          selectedLayoutPlot.status === 'available'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : selectedLayoutPlot.status === 'reserved'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {selectedLayoutPlot.status}
+                      </span>
+                    </div>
+
+                    {/* Quick Nudge / Move Controls */}
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-700">Nudge Position (X, Y)</span>
+                        <span className="font-mono text-[11px] text-slate-500">
+                          X: {Math.round(selectedLayoutPlot.x || 100)}, Y: {Math.round(selectedLayoutPlot.y || 100)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 max-w-[180px] mx-auto">
+                        <div />
+                        <button
+                          onClick={() => handleNudgePlot(0, -5)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Up (-5px)"
+                        >
+                          <ArrowUp className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <div />
+                        <button
+                          onClick={() => handleNudgePlot(-5, 0)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Left (-5px)"
+                        >
+                          <ArrowLeft className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <button
+                          onClick={() => handleNudgePlot(0, 5)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Down (+5px)"
+                        >
+                          <ArrowDown className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <button
+                          onClick={() => handleNudgePlot(5, 0)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Right (+5px)"
+                        >
+                          <ArrowRight className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quick Resize / Shape Controls */}
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-700">Resize Shape (W, H)</span>
+                        <span className="font-mono text-[11px] text-slate-500">
+                          W: {Math.round(selectedLayoutPlot.width || 75)}px, H: {Math.round(selectedLayoutPlot.height || 55)}px
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <button
+                          onClick={() => handleResizePlot(5, 0)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          + Wider (+5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(-5, 0)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          - Narrower (-5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(0, 5)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          + Taller (+5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(0, -5)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          - Shorter (-5)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Form Fields for Specifications */}
+                    <div className="space-y-3 text-xs">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Status</label>
+                          <select
+                            value={selectedLayoutPlot.status}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                status: e.target.value as any,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                          >
+                            <option value="available">Available</option>
+                            <option value="reserved">Reserved</option>
+                            <option value="sold">Sold</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Facing</label>
+                          <select
+                            value={selectedLayoutPlot.facing}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                facing: e.target.value as any,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                          >
+                            <option value="East">East</option>
+                            <option value="West">West</option>
+                            <option value="North">North</option>
+                            <option value="South">South</option>
+                            <option value="North-East">North-East</option>
+                            <option value="Corner">Corner</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Area (Sq. Yds)</label>
+                          <input
+                            type="number"
+                            value={selectedLayoutPlot.area_sq_yards}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                area_sq_yards: Number(e.target.value),
+                                area_cents: Number((Number(e.target.value) / 48.4).toFixed(2)),
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-mono font-medium"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Dimensions</label>
+                          <input
+                            type="text"
+                            value={selectedLayoutPlot.dimensions}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                dimensions: e.target.value,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Road Width</label>
+                          <select
+                            value={selectedLayoutPlot.road_width}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                road_width: e.target.value,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
+                          >
+                            <option value="40 Feet">40 Feet Main</option>
+                            <option value="33 Feet">33 Feet Cross</option>
+                            <option value="60 Feet">60 Feet Highway</option>
+                          </select>
+                        </div>
+
+                        <div className="flex items-center pt-5">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(selectedLayoutPlot.is_corner)}
+                              onChange={(e) =>
+                                setSelectedLayoutPlot({
+                                  ...selectedLayoutPlot,
+                                  is_corner: e.target.checked,
+                                })
+                              }
+                              className="rounded text-surya-orange-500 focus:ring-surya-orange-500"
+                            />
+                            <span className="font-semibold text-slate-700">Corner Plot</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+                      <button
+                        onClick={handleSaveLayoutPlot}
+                        disabled={isSavingLayoutPlot}
+                        className="w-full py-2.5 rounded-xl bg-surya-navy-950 hover:bg-black text-white font-semibold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+                      >
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        <span>{isSavingLayoutPlot ? 'Saving to Supabase...' : 'Save & Sync to Cloud'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeletePlot(selectedLayoutPlot.plot_number)}
+                        className="w-full py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Plot #{selectedLayoutPlot.plot_number}</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-12 text-center text-slate-400 text-xs">
+                    <Map className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="font-medium text-slate-600">No Plot Selected</p>
+                    <p className="mt-1 text-[11px]">Click any plot rectangle on the map canvas to inspect and tune its shape.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
         {/* TAB 5: GALLERY MANAGEMENT */}
         {/* ============================================================== */}
         {activeTab === 'gallery' && (
@@ -2212,6 +4535,470 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* TAB: INTERACTIVE PLOTTED LAYOUT & SHAPE EDITOR */}
+        {/* ============================================================== */}
+        {activeTab === 'layout' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs uppercase font-bold text-emerald-700 tracking-wider">
+                    Cloud Realtime Synced
+                  </span>
+                </div>
+                <h3 className="font-serif text-2xl font-bold text-surya-navy-950 mt-1">
+                  Interactive Plotted Layout & Shape Editor
+                </h3>
+                <p className="text-slate-600 text-sm mt-0.5">
+                  Click any demarcated plot on the map to modify coordinates, shape boundaries, orientation, or dimensions in realtime.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 self-end md:self-auto">
+                <div className="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200 text-xs">
+                  <button
+                    onClick={() => setLayoutZoom((prev) => Math.min(prev + 0.15, 2.0))}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Zoom In"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setLayoutZoom((prev) => Math.max(prev - 0.15, 0.7))}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setLayoutZoom(1)}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Reset Zoom"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const nextNum = (plots.length + 1).toString();
+                    setNewPlotForm({
+                      plot_number: nextNum,
+                      area_sq_yards: 200,
+                      area_cents: 4.13,
+                      dimensions: "36' x 50'",
+                      facing: 'East',
+                      road_width: '40 Feet',
+                      status: 'available',
+                      is_corner: false,
+                      notes: '',
+                    });
+                    setShowAddPlotModal(true);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-surya-orange-500 hover:bg-surya-orange-600 text-white font-semibold text-xs shadow-md flex items-center gap-1.5 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add New Plot</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Layout Canvas + Inspector Split View */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left/Main: Visual SVG Canvas */}
+              <div className="lg:col-span-8 bg-white rounded-3xl p-4 sm:p-6 shadow-md border border-slate-200 overflow-hidden">
+                <div className="flex items-center justify-between mb-3 text-xs text-slate-500">
+                  <span>Interactive Map Preview (Click plot to select)</span>
+                  {selectedLayoutPlot && (
+                    <span className="font-bold text-surya-orange-600">
+                      Active: Plot #{selectedLayoutPlot.plot_number} (X: {Math.round(selectedLayoutPlot.x || 100)}, Y: {Math.round(selectedLayoutPlot.y || 100)})
+                    </span>
+                  )}
+                </div>
+
+                <div className="w-full overflow-x-auto overflow-y-hidden pb-4">
+                  <div
+                    style={{
+                      transform: `scale(${layoutZoom})`,
+                      transformOrigin: 'top left',
+                      transition: 'transform 0.2s ease-out',
+                      minWidth: '1150px',
+                    }}
+                    className="relative select-none"
+                  >
+                    <svg
+                      viewBox="0 0 1200 700"
+                      className="w-full h-auto drop-shadow-sm cursor-crosshair"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      {/* Background */}
+                      <rect x="20" y="20" width="1160" height="660" rx="16" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="3" />
+
+                      {/* Grand Entrance */}
+                      <rect x="30" y="30" width="160" height="70" rx="8" fill="#0B3064" stroke="#F26522" strokeWidth="2" />
+                      <text x="110" y="60" fill="#FFFFFF" fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                        GRAND ENTRANCE
+                      </text>
+                      <text x="110" y="76" fill="#F26522" fontSize="9" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                        ARCH & CABIN
+                      </text>
+
+                      {/* Roads */}
+                      <rect x="200" y="30" width="70" height="640" fill="#334155" opacity="0.9" />
+                      <line x1="235" y1="30" x2="235" y2="670" stroke="#F8FAFC" strokeWidth="2" strokeDasharray="10 10" />
+                      <text x="235" y="360" fill="#FFFFFF" fontSize="12" fontWeight="bold" textAnchor="middle" transform="rotate(-90 235 360)">
+                        40-FEET MAIN BOULEVARD
+                      </text>
+
+                      <rect x="20" y="275" width="1160" height="40" fill="#475569" opacity="0.85" />
+                      <line x1="20" y1="295" x2="1180" y2="295" stroke="#E2E8F0" strokeWidth="1.5" strokeDasharray="8 8" />
+
+                      <rect x="20" y="445" width="1160" height="40" fill="#475569" opacity="0.85" />
+                      <line x1="20" y1="465" x2="1180" y2="465" stroke="#E2E8F0" strokeWidth="1.5" strokeDasharray="8 8" />
+
+                      <rect x="715" y="30" width="45" height="640" fill="#475569" opacity="0.85" />
+
+                      {/* Central Park */}
+                      <rect x="770" y="275" width="345" height="150" rx="12" fill="#D1FAE5" stroke="#10B981" strokeWidth="2" strokeDasharray="4 4" />
+                      <text x="942" y="355" fill="#065F46" fontSize="13" fontWeight="bold" textAnchor="middle">
+                        CENTRAL PARK & WALKING TRACK
+                      </text>
+
+                      {/* Commercial Corner */}
+                      <rect x="20" y="630" width="180" height="40" rx="6" fill="#FEF3C7" stroke="#D97706" strokeWidth="1.5" />
+                      <text x="110" y="655" fill="#92400E" fontSize="10" fontWeight="bold" textAnchor="middle">
+                        COMMERCIAL
+                      </text>
+
+                      {/* Render All Plots on Canvas */}
+                      {plots.map((plot) => {
+                        const isSelected = selectedLayoutPlot?.plot_number === plot.plot_number;
+
+                        let fillColor = '#10B981';
+                        let strokeColor = '#047857';
+                        let textColor = '#FFFFFF';
+
+                        if (plot.status === 'reserved') {
+                          fillColor = '#F59E0B';
+                          strokeColor = '#B45309';
+                        } else if (plot.status === 'sold') {
+                          fillColor = '#64748B';
+                          strokeColor = '#334155';
+                          textColor = '#E2E8F0';
+                        }
+
+                        const x = plot.x !== undefined ? Number(plot.x) : 100;
+                        const y = plot.y !== undefined ? Number(plot.y) : 100;
+                        const width = plot.width !== undefined ? Number(plot.width) : 75;
+                        const height = plot.height !== undefined ? Number(plot.height) : 55;
+
+                        return (
+                          <g
+                            key={plot.id || plot.plot_number}
+                            onClick={() => setSelectedLayoutPlot(plot)}
+                            className="cursor-pointer"
+                          >
+                            {/* Plot Rectangle */}
+                            <rect
+                              x={x}
+                              y={y}
+                              width={width}
+                              height={height}
+                              rx="5"
+                              fill={isSelected ? '#3B82F6' : fillColor}
+                              stroke={isSelected ? '#F59E0B' : strokeColor}
+                              strokeWidth={isSelected ? '3.5' : '1.5'}
+                            />
+
+                            {/* Corner indicator */}
+                            {plot.is_corner && (
+                              <circle cx={x + width - 8} cy={y + 8} r="4" fill="#F26522" />
+                            )}
+
+                            {/* Plot Number */}
+                            <text
+                              x={x + width / 2}
+                              y={y + height / 2 - 2}
+                              fill={textColor}
+                              fontSize="11"
+                              fontWeight="bold"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                            >
+                              #{plot.plot_number}
+                            </text>
+
+                            {/* Subtitle Facing */}
+                            <text
+                              x={x + width / 2}
+                              y={y + height / 2 + 12}
+                              fill={textColor}
+                              fontSize="8"
+                              opacity="0.9"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                            >
+                              {plot.facing.slice(0, 1)} • {plot.area_sq_yards}Y
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Shape & Coordinates Inspector Panel */}
+              <div className="lg:col-span-4 bg-white rounded-3xl p-6 shadow-md border border-slate-200">
+                {selectedLayoutPlot ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                      <div>
+                        <span className="text-[11px] uppercase tracking-wider font-bold text-surya-orange-600 block">
+                          Plot Shape Inspector
+                        </span>
+                        <h4 className="font-serif text-2xl font-bold text-surya-navy-950">
+                          Plot #{selectedLayoutPlot.plot_number}
+                        </h4>
+                      </div>
+                      <span
+                        className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase ${
+                          selectedLayoutPlot.status === 'available'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : selectedLayoutPlot.status === 'reserved'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {selectedLayoutPlot.status}
+                      </span>
+                    </div>
+
+                    {/* Quick Nudge / Move Controls */}
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-700">Nudge Position (X, Y)</span>
+                        <span className="font-mono text-[11px] text-slate-500">
+                          X: {Math.round(selectedLayoutPlot.x || 100)}, Y: {Math.round(selectedLayoutPlot.y || 100)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 max-w-[180px] mx-auto">
+                        <div />
+                        <button
+                          onClick={() => handleNudgePlot(0, -5)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Up (-5px)"
+                        >
+                          <ArrowUp className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <div />
+                        <button
+                          onClick={() => handleNudgePlot(-5, 0)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Left (-5px)"
+                        >
+                          <ArrowLeft className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <button
+                          onClick={() => handleNudgePlot(0, 5)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Down (+5px)"
+                        >
+                          <ArrowDown className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <button
+                          onClick={() => handleNudgePlot(5, 0)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Right (+5px)"
+                        >
+                          <ArrowRight className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quick Resize / Shape Controls */}
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-700">Resize Shape (W, H)</span>
+                        <span className="font-mono text-[11px] text-slate-500">
+                          W: {Math.round(selectedLayoutPlot.width || 75)}px, H: {Math.round(selectedLayoutPlot.height || 55)}px
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <button
+                          onClick={() => handleResizePlot(5, 0)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          + Wider (+5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(-5, 0)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          - Narrower (-5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(0, 5)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          + Taller (+5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(0, -5)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          - Shorter (-5)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Form Fields for Specifications */}
+                    <div className="space-y-3 text-xs">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Status</label>
+                          <select
+                            value={selectedLayoutPlot.status}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                status: e.target.value as any,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                          >
+                            <option value="available">Available</option>
+                            <option value="reserved">Reserved</option>
+                            <option value="sold">Sold</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Facing</label>
+                          <select
+                            value={selectedLayoutPlot.facing}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                facing: e.target.value as any,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                          >
+                            <option value="East">East</option>
+                            <option value="West">West</option>
+                            <option value="North">North</option>
+                            <option value="South">South</option>
+                            <option value="North-East">North-East</option>
+                            <option value="Corner">Corner</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Area (Sq. Yds)</label>
+                          <input
+                            type="number"
+                            value={selectedLayoutPlot.area_sq_yards}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                area_sq_yards: Number(e.target.value),
+                                area_cents: Number((Number(e.target.value) / 48.4).toFixed(2)),
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-mono font-medium"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Dimensions</label>
+                          <input
+                            type="text"
+                            value={selectedLayoutPlot.dimensions}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                dimensions: e.target.value,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Road Width</label>
+                          <select
+                            value={selectedLayoutPlot.road_width}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                road_width: e.target.value,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
+                          >
+                            <option value="40 Feet">40 Feet Main</option>
+                            <option value="33 Feet">33 Feet Cross</option>
+                            <option value="60 Feet">60 Feet Highway</option>
+                          </select>
+                        </div>
+
+                        <div className="flex items-center pt-5">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(selectedLayoutPlot.is_corner)}
+                              onChange={(e) =>
+                                setSelectedLayoutPlot({
+                                  ...selectedLayoutPlot,
+                                  is_corner: e.target.checked,
+                                })
+                              }
+                              className="rounded text-surya-orange-500 focus:ring-surya-orange-500"
+                            />
+                            <span className="font-semibold text-slate-700">Corner Plot</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+                      <button
+                        onClick={handleSaveLayoutPlot}
+                        disabled={isSavingLayoutPlot}
+                        className="w-full py-2.5 rounded-xl bg-surya-navy-950 hover:bg-black text-white font-semibold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+                      >
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        <span>{isSavingLayoutPlot ? 'Saving to Supabase...' : 'Save & Sync to Cloud'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeletePlot(selectedLayoutPlot.plot_number)}
+                        className="w-full py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Plot #{selectedLayoutPlot.plot_number}</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-12 text-center text-slate-400 text-xs">
+                    <Map className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="font-medium text-slate-600">No Plot Selected</p>
+                    <p className="mt-1 text-[11px]">Click any plot rectangle on the map canvas to inspect and tune its shape.</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -2316,6 +5103,470 @@ export default function AdminDashboardPage() {
         )}
 
         {/* ============================================================== */}
+        {/* TAB: INTERACTIVE PLOTTED LAYOUT & SHAPE EDITOR */}
+        {/* ============================================================== */}
+        {activeTab === 'layout' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs uppercase font-bold text-emerald-700 tracking-wider">
+                    Cloud Realtime Synced
+                  </span>
+                </div>
+                <h3 className="font-serif text-2xl font-bold text-surya-navy-950 mt-1">
+                  Interactive Plotted Layout & Shape Editor
+                </h3>
+                <p className="text-slate-600 text-sm mt-0.5">
+                  Click any demarcated plot on the map to modify coordinates, shape boundaries, orientation, or dimensions in realtime.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 self-end md:self-auto">
+                <div className="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200 text-xs">
+                  <button
+                    onClick={() => setLayoutZoom((prev) => Math.min(prev + 0.15, 2.0))}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Zoom In"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setLayoutZoom((prev) => Math.max(prev - 0.15, 0.7))}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setLayoutZoom(1)}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Reset Zoom"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const nextNum = (plots.length + 1).toString();
+                    setNewPlotForm({
+                      plot_number: nextNum,
+                      area_sq_yards: 200,
+                      area_cents: 4.13,
+                      dimensions: "36' x 50'",
+                      facing: 'East',
+                      road_width: '40 Feet',
+                      status: 'available',
+                      is_corner: false,
+                      notes: '',
+                    });
+                    setShowAddPlotModal(true);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-surya-orange-500 hover:bg-surya-orange-600 text-white font-semibold text-xs shadow-md flex items-center gap-1.5 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add New Plot</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Layout Canvas + Inspector Split View */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left/Main: Visual SVG Canvas */}
+              <div className="lg:col-span-8 bg-white rounded-3xl p-4 sm:p-6 shadow-md border border-slate-200 overflow-hidden">
+                <div className="flex items-center justify-between mb-3 text-xs text-slate-500">
+                  <span>Interactive Map Preview (Click plot to select)</span>
+                  {selectedLayoutPlot && (
+                    <span className="font-bold text-surya-orange-600">
+                      Active: Plot #{selectedLayoutPlot.plot_number} (X: {Math.round(selectedLayoutPlot.x || 100)}, Y: {Math.round(selectedLayoutPlot.y || 100)})
+                    </span>
+                  )}
+                </div>
+
+                <div className="w-full overflow-x-auto overflow-y-hidden pb-4">
+                  <div
+                    style={{
+                      transform: `scale(${layoutZoom})`,
+                      transformOrigin: 'top left',
+                      transition: 'transform 0.2s ease-out',
+                      minWidth: '1150px',
+                    }}
+                    className="relative select-none"
+                  >
+                    <svg
+                      viewBox="0 0 1200 700"
+                      className="w-full h-auto drop-shadow-sm cursor-crosshair"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      {/* Background */}
+                      <rect x="20" y="20" width="1160" height="660" rx="16" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="3" />
+
+                      {/* Grand Entrance */}
+                      <rect x="30" y="30" width="160" height="70" rx="8" fill="#0B3064" stroke="#F26522" strokeWidth="2" />
+                      <text x="110" y="60" fill="#FFFFFF" fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                        GRAND ENTRANCE
+                      </text>
+                      <text x="110" y="76" fill="#F26522" fontSize="9" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                        ARCH & CABIN
+                      </text>
+
+                      {/* Roads */}
+                      <rect x="200" y="30" width="70" height="640" fill="#334155" opacity="0.9" />
+                      <line x1="235" y1="30" x2="235" y2="670" stroke="#F8FAFC" strokeWidth="2" strokeDasharray="10 10" />
+                      <text x="235" y="360" fill="#FFFFFF" fontSize="12" fontWeight="bold" textAnchor="middle" transform="rotate(-90 235 360)">
+                        40-FEET MAIN BOULEVARD
+                      </text>
+
+                      <rect x="20" y="275" width="1160" height="40" fill="#475569" opacity="0.85" />
+                      <line x1="20" y1="295" x2="1180" y2="295" stroke="#E2E8F0" strokeWidth="1.5" strokeDasharray="8 8" />
+
+                      <rect x="20" y="445" width="1160" height="40" fill="#475569" opacity="0.85" />
+                      <line x1="20" y1="465" x2="1180" y2="465" stroke="#E2E8F0" strokeWidth="1.5" strokeDasharray="8 8" />
+
+                      <rect x="715" y="30" width="45" height="640" fill="#475569" opacity="0.85" />
+
+                      {/* Central Park */}
+                      <rect x="770" y="275" width="345" height="150" rx="12" fill="#D1FAE5" stroke="#10B981" strokeWidth="2" strokeDasharray="4 4" />
+                      <text x="942" y="355" fill="#065F46" fontSize="13" fontWeight="bold" textAnchor="middle">
+                        CENTRAL PARK & WALKING TRACK
+                      </text>
+
+                      {/* Commercial Corner */}
+                      <rect x="20" y="630" width="180" height="40" rx="6" fill="#FEF3C7" stroke="#D97706" strokeWidth="1.5" />
+                      <text x="110" y="655" fill="#92400E" fontSize="10" fontWeight="bold" textAnchor="middle">
+                        COMMERCIAL
+                      </text>
+
+                      {/* Render All Plots on Canvas */}
+                      {plots.map((plot) => {
+                        const isSelected = selectedLayoutPlot?.plot_number === plot.plot_number;
+
+                        let fillColor = '#10B981';
+                        let strokeColor = '#047857';
+                        let textColor = '#FFFFFF';
+
+                        if (plot.status === 'reserved') {
+                          fillColor = '#F59E0B';
+                          strokeColor = '#B45309';
+                        } else if (plot.status === 'sold') {
+                          fillColor = '#64748B';
+                          strokeColor = '#334155';
+                          textColor = '#E2E8F0';
+                        }
+
+                        const x = plot.x !== undefined ? Number(plot.x) : 100;
+                        const y = plot.y !== undefined ? Number(plot.y) : 100;
+                        const width = plot.width !== undefined ? Number(plot.width) : 75;
+                        const height = plot.height !== undefined ? Number(plot.height) : 55;
+
+                        return (
+                          <g
+                            key={plot.id || plot.plot_number}
+                            onClick={() => setSelectedLayoutPlot(plot)}
+                            className="cursor-pointer"
+                          >
+                            {/* Plot Rectangle */}
+                            <rect
+                              x={x}
+                              y={y}
+                              width={width}
+                              height={height}
+                              rx="5"
+                              fill={isSelected ? '#3B82F6' : fillColor}
+                              stroke={isSelected ? '#F59E0B' : strokeColor}
+                              strokeWidth={isSelected ? '3.5' : '1.5'}
+                            />
+
+                            {/* Corner indicator */}
+                            {plot.is_corner && (
+                              <circle cx={x + width - 8} cy={y + 8} r="4" fill="#F26522" />
+                            )}
+
+                            {/* Plot Number */}
+                            <text
+                              x={x + width / 2}
+                              y={y + height / 2 - 2}
+                              fill={textColor}
+                              fontSize="11"
+                              fontWeight="bold"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                            >
+                              #{plot.plot_number}
+                            </text>
+
+                            {/* Subtitle Facing */}
+                            <text
+                              x={x + width / 2}
+                              y={y + height / 2 + 12}
+                              fill={textColor}
+                              fontSize="8"
+                              opacity="0.9"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                            >
+                              {plot.facing.slice(0, 1)} • {plot.area_sq_yards}Y
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Shape & Coordinates Inspector Panel */}
+              <div className="lg:col-span-4 bg-white rounded-3xl p-6 shadow-md border border-slate-200">
+                {selectedLayoutPlot ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                      <div>
+                        <span className="text-[11px] uppercase tracking-wider font-bold text-surya-orange-600 block">
+                          Plot Shape Inspector
+                        </span>
+                        <h4 className="font-serif text-2xl font-bold text-surya-navy-950">
+                          Plot #{selectedLayoutPlot.plot_number}
+                        </h4>
+                      </div>
+                      <span
+                        className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase ${
+                          selectedLayoutPlot.status === 'available'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : selectedLayoutPlot.status === 'reserved'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {selectedLayoutPlot.status}
+                      </span>
+                    </div>
+
+                    {/* Quick Nudge / Move Controls */}
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-700">Nudge Position (X, Y)</span>
+                        <span className="font-mono text-[11px] text-slate-500">
+                          X: {Math.round(selectedLayoutPlot.x || 100)}, Y: {Math.round(selectedLayoutPlot.y || 100)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 max-w-[180px] mx-auto">
+                        <div />
+                        <button
+                          onClick={() => handleNudgePlot(0, -5)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Up (-5px)"
+                        >
+                          <ArrowUp className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <div />
+                        <button
+                          onClick={() => handleNudgePlot(-5, 0)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Left (-5px)"
+                        >
+                          <ArrowLeft className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <button
+                          onClick={() => handleNudgePlot(0, 5)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Down (+5px)"
+                        >
+                          <ArrowDown className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <button
+                          onClick={() => handleNudgePlot(5, 0)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Right (+5px)"
+                        >
+                          <ArrowRight className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quick Resize / Shape Controls */}
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-700">Resize Shape (W, H)</span>
+                        <span className="font-mono text-[11px] text-slate-500">
+                          W: {Math.round(selectedLayoutPlot.width || 75)}px, H: {Math.round(selectedLayoutPlot.height || 55)}px
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <button
+                          onClick={() => handleResizePlot(5, 0)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          + Wider (+5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(-5, 0)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          - Narrower (-5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(0, 5)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          + Taller (+5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(0, -5)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          - Shorter (-5)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Form Fields for Specifications */}
+                    <div className="space-y-3 text-xs">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Status</label>
+                          <select
+                            value={selectedLayoutPlot.status}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                status: e.target.value as any,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                          >
+                            <option value="available">Available</option>
+                            <option value="reserved">Reserved</option>
+                            <option value="sold">Sold</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Facing</label>
+                          <select
+                            value={selectedLayoutPlot.facing}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                facing: e.target.value as any,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                          >
+                            <option value="East">East</option>
+                            <option value="West">West</option>
+                            <option value="North">North</option>
+                            <option value="South">South</option>
+                            <option value="North-East">North-East</option>
+                            <option value="Corner">Corner</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Area (Sq. Yds)</label>
+                          <input
+                            type="number"
+                            value={selectedLayoutPlot.area_sq_yards}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                area_sq_yards: Number(e.target.value),
+                                area_cents: Number((Number(e.target.value) / 48.4).toFixed(2)),
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-mono font-medium"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Dimensions</label>
+                          <input
+                            type="text"
+                            value={selectedLayoutPlot.dimensions}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                dimensions: e.target.value,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Road Width</label>
+                          <select
+                            value={selectedLayoutPlot.road_width}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                road_width: e.target.value,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
+                          >
+                            <option value="40 Feet">40 Feet Main</option>
+                            <option value="33 Feet">33 Feet Cross</option>
+                            <option value="60 Feet">60 Feet Highway</option>
+                          </select>
+                        </div>
+
+                        <div className="flex items-center pt-5">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(selectedLayoutPlot.is_corner)}
+                              onChange={(e) =>
+                                setSelectedLayoutPlot({
+                                  ...selectedLayoutPlot,
+                                  is_corner: e.target.checked,
+                                })
+                              }
+                              className="rounded text-surya-orange-500 focus:ring-surya-orange-500"
+                            />
+                            <span className="font-semibold text-slate-700">Corner Plot</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+                      <button
+                        onClick={handleSaveLayoutPlot}
+                        disabled={isSavingLayoutPlot}
+                        className="w-full py-2.5 rounded-xl bg-surya-navy-950 hover:bg-black text-white font-semibold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+                      >
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        <span>{isSavingLayoutPlot ? 'Saving to Supabase...' : 'Save & Sync to Cloud'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeletePlot(selectedLayoutPlot.plot_number)}
+                        className="w-full py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Plot #{selectedLayoutPlot.plot_number}</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-12 text-center text-slate-400 text-xs">
+                    <Map className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="font-medium text-slate-600">No Plot Selected</p>
+                    <p className="mt-1 text-[11px]">Click any plot rectangle on the map canvas to inspect and tune its shape.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
         {/* TAB 7: SUPABASE SQL & SETUP GUIDE */}
         {/* ============================================================== */}
         {activeTab === 'database' && (
@@ -2357,6 +5608,470 @@ export default function AdminDashboardPage() {
               <div className="mt-4 flex items-center gap-2 text-xs text-slate-500">
                 <AlertCircle className="w-4 h-4 text-emerald-600" />
                 <span>Note: The website features an automatic fallback store so all dynamic functions run seamlessly in all environments!</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* TAB: INTERACTIVE PLOTTED LAYOUT & SHAPE EDITOR */}
+        {/* ============================================================== */}
+        {activeTab === 'layout' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs uppercase font-bold text-emerald-700 tracking-wider">
+                    Cloud Realtime Synced
+                  </span>
+                </div>
+                <h3 className="font-serif text-2xl font-bold text-surya-navy-950 mt-1">
+                  Interactive Plotted Layout & Shape Editor
+                </h3>
+                <p className="text-slate-600 text-sm mt-0.5">
+                  Click any demarcated plot on the map to modify coordinates, shape boundaries, orientation, or dimensions in realtime.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 self-end md:self-auto">
+                <div className="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200 text-xs">
+                  <button
+                    onClick={() => setLayoutZoom((prev) => Math.min(prev + 0.15, 2.0))}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Zoom In"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setLayoutZoom((prev) => Math.max(prev - 0.15, 0.7))}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setLayoutZoom(1)}
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-700 transition-colors"
+                    title="Reset Zoom"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const nextNum = (plots.length + 1).toString();
+                    setNewPlotForm({
+                      plot_number: nextNum,
+                      area_sq_yards: 200,
+                      area_cents: 4.13,
+                      dimensions: "36' x 50'",
+                      facing: 'East',
+                      road_width: '40 Feet',
+                      status: 'available',
+                      is_corner: false,
+                      notes: '',
+                    });
+                    setShowAddPlotModal(true);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-surya-orange-500 hover:bg-surya-orange-600 text-white font-semibold text-xs shadow-md flex items-center gap-1.5 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add New Plot</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Layout Canvas + Inspector Split View */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left/Main: Visual SVG Canvas */}
+              <div className="lg:col-span-8 bg-white rounded-3xl p-4 sm:p-6 shadow-md border border-slate-200 overflow-hidden">
+                <div className="flex items-center justify-between mb-3 text-xs text-slate-500">
+                  <span>Interactive Map Preview (Click plot to select)</span>
+                  {selectedLayoutPlot && (
+                    <span className="font-bold text-surya-orange-600">
+                      Active: Plot #{selectedLayoutPlot.plot_number} (X: {Math.round(selectedLayoutPlot.x || 100)}, Y: {Math.round(selectedLayoutPlot.y || 100)})
+                    </span>
+                  )}
+                </div>
+
+                <div className="w-full overflow-x-auto overflow-y-hidden pb-4">
+                  <div
+                    style={{
+                      transform: `scale(${layoutZoom})`,
+                      transformOrigin: 'top left',
+                      transition: 'transform 0.2s ease-out',
+                      minWidth: '1150px',
+                    }}
+                    className="relative select-none"
+                  >
+                    <svg
+                      viewBox="0 0 1200 700"
+                      className="w-full h-auto drop-shadow-sm cursor-crosshair"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      {/* Background */}
+                      <rect x="20" y="20" width="1160" height="660" rx="16" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="3" />
+
+                      {/* Grand Entrance */}
+                      <rect x="30" y="30" width="160" height="70" rx="8" fill="#0B3064" stroke="#F26522" strokeWidth="2" />
+                      <text x="110" y="60" fill="#FFFFFF" fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                        GRAND ENTRANCE
+                      </text>
+                      <text x="110" y="76" fill="#F26522" fontSize="9" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                        ARCH & CABIN
+                      </text>
+
+                      {/* Roads */}
+                      <rect x="200" y="30" width="70" height="640" fill="#334155" opacity="0.9" />
+                      <line x1="235" y1="30" x2="235" y2="670" stroke="#F8FAFC" strokeWidth="2" strokeDasharray="10 10" />
+                      <text x="235" y="360" fill="#FFFFFF" fontSize="12" fontWeight="bold" textAnchor="middle" transform="rotate(-90 235 360)">
+                        40-FEET MAIN BOULEVARD
+                      </text>
+
+                      <rect x="20" y="275" width="1160" height="40" fill="#475569" opacity="0.85" />
+                      <line x1="20" y1="295" x2="1180" y2="295" stroke="#E2E8F0" strokeWidth="1.5" strokeDasharray="8 8" />
+
+                      <rect x="20" y="445" width="1160" height="40" fill="#475569" opacity="0.85" />
+                      <line x1="20" y1="465" x2="1180" y2="465" stroke="#E2E8F0" strokeWidth="1.5" strokeDasharray="8 8" />
+
+                      <rect x="715" y="30" width="45" height="640" fill="#475569" opacity="0.85" />
+
+                      {/* Central Park */}
+                      <rect x="770" y="275" width="345" height="150" rx="12" fill="#D1FAE5" stroke="#10B981" strokeWidth="2" strokeDasharray="4 4" />
+                      <text x="942" y="355" fill="#065F46" fontSize="13" fontWeight="bold" textAnchor="middle">
+                        CENTRAL PARK & WALKING TRACK
+                      </text>
+
+                      {/* Commercial Corner */}
+                      <rect x="20" y="630" width="180" height="40" rx="6" fill="#FEF3C7" stroke="#D97706" strokeWidth="1.5" />
+                      <text x="110" y="655" fill="#92400E" fontSize="10" fontWeight="bold" textAnchor="middle">
+                        COMMERCIAL
+                      </text>
+
+                      {/* Render All Plots on Canvas */}
+                      {plots.map((plot) => {
+                        const isSelected = selectedLayoutPlot?.plot_number === plot.plot_number;
+
+                        let fillColor = '#10B981';
+                        let strokeColor = '#047857';
+                        let textColor = '#FFFFFF';
+
+                        if (plot.status === 'reserved') {
+                          fillColor = '#F59E0B';
+                          strokeColor = '#B45309';
+                        } else if (plot.status === 'sold') {
+                          fillColor = '#64748B';
+                          strokeColor = '#334155';
+                          textColor = '#E2E8F0';
+                        }
+
+                        const x = plot.x !== undefined ? Number(plot.x) : 100;
+                        const y = plot.y !== undefined ? Number(plot.y) : 100;
+                        const width = plot.width !== undefined ? Number(plot.width) : 75;
+                        const height = plot.height !== undefined ? Number(plot.height) : 55;
+
+                        return (
+                          <g
+                            key={plot.id || plot.plot_number}
+                            onClick={() => setSelectedLayoutPlot(plot)}
+                            className="cursor-pointer"
+                          >
+                            {/* Plot Rectangle */}
+                            <rect
+                              x={x}
+                              y={y}
+                              width={width}
+                              height={height}
+                              rx="5"
+                              fill={isSelected ? '#3B82F6' : fillColor}
+                              stroke={isSelected ? '#F59E0B' : strokeColor}
+                              strokeWidth={isSelected ? '3.5' : '1.5'}
+                            />
+
+                            {/* Corner indicator */}
+                            {plot.is_corner && (
+                              <circle cx={x + width - 8} cy={y + 8} r="4" fill="#F26522" />
+                            )}
+
+                            {/* Plot Number */}
+                            <text
+                              x={x + width / 2}
+                              y={y + height / 2 - 2}
+                              fill={textColor}
+                              fontSize="11"
+                              fontWeight="bold"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                            >
+                              #{plot.plot_number}
+                            </text>
+
+                            {/* Subtitle Facing */}
+                            <text
+                              x={x + width / 2}
+                              y={y + height / 2 + 12}
+                              fill={textColor}
+                              fontSize="8"
+                              opacity="0.9"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                            >
+                              {plot.facing.slice(0, 1)} • {plot.area_sq_yards}Y
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Shape & Coordinates Inspector Panel */}
+              <div className="lg:col-span-4 bg-white rounded-3xl p-6 shadow-md border border-slate-200">
+                {selectedLayoutPlot ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                      <div>
+                        <span className="text-[11px] uppercase tracking-wider font-bold text-surya-orange-600 block">
+                          Plot Shape Inspector
+                        </span>
+                        <h4 className="font-serif text-2xl font-bold text-surya-navy-950">
+                          Plot #{selectedLayoutPlot.plot_number}
+                        </h4>
+                      </div>
+                      <span
+                        className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase ${
+                          selectedLayoutPlot.status === 'available'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : selectedLayoutPlot.status === 'reserved'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {selectedLayoutPlot.status}
+                      </span>
+                    </div>
+
+                    {/* Quick Nudge / Move Controls */}
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-700">Nudge Position (X, Y)</span>
+                        <span className="font-mono text-[11px] text-slate-500">
+                          X: {Math.round(selectedLayoutPlot.x || 100)}, Y: {Math.round(selectedLayoutPlot.y || 100)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 max-w-[180px] mx-auto">
+                        <div />
+                        <button
+                          onClick={() => handleNudgePlot(0, -5)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Up (-5px)"
+                        >
+                          <ArrowUp className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <div />
+                        <button
+                          onClick={() => handleNudgePlot(-5, 0)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Left (-5px)"
+                        >
+                          <ArrowLeft className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <button
+                          onClick={() => handleNudgePlot(0, 5)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Down (+5px)"
+                        >
+                          <ArrowDown className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                        <button
+                          onClick={() => handleNudgePlot(5, 0)}
+                          className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm flex items-center justify-center"
+                          title="Nudge Right (+5px)"
+                        >
+                          <ArrowRight className="w-4 h-4 text-surya-navy-900" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quick Resize / Shape Controls */}
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-700">Resize Shape (W, H)</span>
+                        <span className="font-mono text-[11px] text-slate-500">
+                          W: {Math.round(selectedLayoutPlot.width || 75)}px, H: {Math.round(selectedLayoutPlot.height || 55)}px
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <button
+                          onClick={() => handleResizePlot(5, 0)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          + Wider (+5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(-5, 0)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          - Narrower (-5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(0, 5)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          + Taller (+5)
+                        </button>
+                        <button
+                          onClick={() => handleResizePlot(0, -5)}
+                          className="py-1.5 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 shadow-sm font-semibold"
+                        >
+                          - Shorter (-5)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Form Fields for Specifications */}
+                    <div className="space-y-3 text-xs">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Status</label>
+                          <select
+                            value={selectedLayoutPlot.status}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                status: e.target.value as any,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                          >
+                            <option value="available">Available</option>
+                            <option value="reserved">Reserved</option>
+                            <option value="sold">Sold</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Facing</label>
+                          <select
+                            value={selectedLayoutPlot.facing}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                facing: e.target.value as any,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                          >
+                            <option value="East">East</option>
+                            <option value="West">West</option>
+                            <option value="North">North</option>
+                            <option value="South">South</option>
+                            <option value="North-East">North-East</option>
+                            <option value="Corner">Corner</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Area (Sq. Yds)</label>
+                          <input
+                            type="number"
+                            value={selectedLayoutPlot.area_sq_yards}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                area_sq_yards: Number(e.target.value),
+                                area_cents: Number((Number(e.target.value) / 48.4).toFixed(2)),
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-mono font-medium"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Dimensions</label>
+                          <input
+                            type="text"
+                            value={selectedLayoutPlot.dimensions}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                dimensions: e.target.value,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Road Width</label>
+                          <select
+                            value={selectedLayoutPlot.road_width}
+                            onChange={(e) =>
+                              setSelectedLayoutPlot({
+                                ...selectedLayoutPlot,
+                                road_width: e.target.value,
+                              })
+                            }
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
+                          >
+                            <option value="40 Feet">40 Feet Main</option>
+                            <option value="33 Feet">33 Feet Cross</option>
+                            <option value="60 Feet">60 Feet Highway</option>
+                          </select>
+                        </div>
+
+                        <div className="flex items-center pt-5">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(selectedLayoutPlot.is_corner)}
+                              onChange={(e) =>
+                                setSelectedLayoutPlot({
+                                  ...selectedLayoutPlot,
+                                  is_corner: e.target.checked,
+                                })
+                              }
+                              className="rounded text-surya-orange-500 focus:ring-surya-orange-500"
+                            />
+                            <span className="font-semibold text-slate-700">Corner Plot</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+                      <button
+                        onClick={handleSaveLayoutPlot}
+                        disabled={isSavingLayoutPlot}
+                        className="w-full py-2.5 rounded-xl bg-surya-navy-950 hover:bg-black text-white font-semibold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+                      >
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        <span>{isSavingLayoutPlot ? 'Saving to Supabase...' : 'Save & Sync to Cloud'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeletePlot(selectedLayoutPlot.plot_number)}
+                        className="w-full py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Plot #{selectedLayoutPlot.plot_number}</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-12 text-center text-slate-400 text-xs">
+                    <Map className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="font-medium text-slate-600">No Plot Selected</p>
+                    <p className="mt-1 text-[11px]">Click any plot rectangle on the map canvas to inspect and tune its shape.</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

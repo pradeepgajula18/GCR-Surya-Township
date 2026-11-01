@@ -1,6 +1,7 @@
 import React from 'react';
 import AmenitiesSection from '@/components/AmenitiesSection';
 import { getAmenities } from '@/lib/supabase';
+import { DEFAULT_AMENITIES } from '@/lib/defaultData';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +11,7 @@ export const metadata = {
 };
 
 export default async function AmenitiesPage() {
-  const amenities = await getAmenities();
+  const amenities = await getAmenities().catch(() => DEFAULT_AMENITIES);
 
   return (
     <div className="bg-slate-900 min-h-screen py-10">

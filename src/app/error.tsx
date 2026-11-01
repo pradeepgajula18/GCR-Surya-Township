@@ -34,6 +34,12 @@ export default function ErrorBoundary({
         We encountered a slight issue while loading this section. You can refresh the view or contact our team directly.
       </p>
 
+      {error?.message && (
+        <p className="text-[11px] font-mono text-slate-500 mt-2 bg-slate-100 p-2 rounded-lg max-w-md mx-auto overflow-x-auto border border-slate-200">
+          Diagnostic: {error.message}
+        </p>
+      )}
+
       <div className="flex flex-wrap items-center justify-center gap-3 mt-8">
         <button
           onClick={() => reset()}

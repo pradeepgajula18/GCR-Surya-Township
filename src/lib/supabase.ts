@@ -2,18 +2,21 @@ import { createClient } from '@supabase/supabase-js';
 import { Plot, HeroVideo, ProjectHighlight, Amenity, GalleryItem, SiteVisitRequest, Enquiry, ProjectSettings } from './types';
 import { DEFAULT_HERO_VIDEOS, DEFAULT_PLOTS, DEFAULT_HIGHLIGHTS, DEFAULT_AMENITIES, DEFAULT_GALLERY } from './defaultData';
 
+// Polyfill WebSocket constructor for Node.js 20 SSR / Serverless on Vercel
+if (typeof window === 'undefined' && typeof globalThis.WebSocket === 'undefined') {
+  // @ts-ignore
+  globalThis.WebSocket = class WebSocket {};
+}
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://zxnuydlxeggezzmevivr.supabase.co';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4bnV5ZGx4ZWdnZXp6bWV2aXZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzNTU0MjMsImV4cCI6MjEwODkzMTQyM30.urQlppsT_QzmqB_MUTa6HaZY3tHWzsmUUxvM0oFSu5k';
 
+const isBrowser = typeof window !== 'undefined';
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 10,
-    },
+    persistSession: isBrowser,
+    autoRefreshToken: isBrowser,
   },
 });
 
@@ -476,41 +479,71 @@ export async function uploadMediaToSupabase(file: File, folder: string = 'hero')
 
 // ---------------- REALTIME EVENT LISTENERS ----------------
 export function subscribeToHeroVideos(onChange: () => void) {
-  const channel = supabase
-    .channel('realtime:hero_videos')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'hero_videos' }, () => {
-      onChange();
-    })
-    .subscribe();
+  if (typeof window === 'undefined') return () => {};
+  try {
+    const channel = supabase
+      .channel('realtime:hero_videos')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'hero_videos' }, () => {
+        onChange();
+      })
+      .subscribe();
 
-  return () => {
-    supabase.removeChannel(channel);
-  };
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch (e) {
+        // ignore cleanup error
+      }
+    };
+  } catch (err) {
+    console.warn('Realtime hero_videos subscription warning:', err);
+    return () => {};
+  }
 }
 
 export function subscribeToPlots(onChange: () => void) {
-  const channel = supabase
-    .channel('realtime:plots')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'plots' }, () => {
-      onChange();
-    })
-    .subscribe();
+  if (typeof window === 'undefined') return () => {};
+  try {
+    const channel = supabase
+      .channel('realtime:plots')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'plots' }, () => {
+        onChange();
+      })
+      .subscribe();
 
-  return () => {
-    supabase.removeChannel(channel);
-  };
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch (e) {
+        // ignore cleanup error
+      }
+    };
+  } catch (err) {
+    console.warn('Realtime plots subscription warning:', err);
+    return () => {};
+  }
 }
 
 export function subscribeToSettings(onChange: (settings: ProjectSettings) => void) {
-  const channel = supabase
-    .channel('realtime:settings')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'project_settings' }, async () => {
-      const updated = await getProjectSettings();
-      onChange(updated);
-    })
-    .subscribe();
+  if (typeof window === 'undefined') return () => {};
+  try {
+    const channel = supabase
+      .channel('realtime:settings')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_settings' }, async () => {
+        const updated = await getProjectSettings();
+        onChange(updated);
+      })
+      .subscribe();
 
-  return () => {
-    supabase.removeChannel(channel);
-  };
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch (e) {
+        // ignore cleanup error
+      }
+    };
+  } catch (err) {
+    console.warn('Realtime settings subscription warning:', err);
+    return () => {};
+  }
 }

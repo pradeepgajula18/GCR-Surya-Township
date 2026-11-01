@@ -1,6 +1,7 @@
 import React from 'react';
 import InteractiveMasterLayout from '@/components/InteractiveMasterLayout';
 import { getPlots } from '@/lib/supabase';
+import { DEFAULT_PLOTS } from '@/lib/defaultData';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +11,7 @@ export const metadata = {
 };
 
 export default async function LayoutMapPage() {
-  const plots = await getPlots();
+  const plots = await getPlots().catch(() => DEFAULT_PLOTS);
 
   return (
     <div className="bg-slate-100 min-h-screen pt-4 pb-16">

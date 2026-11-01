@@ -15,23 +15,11 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'zxnuydlxeggezzmevivr.supabase.co',
+        hostname: '**',
       },
       {
-        protocol: 'https',
-        hostname: '*.supabase.co',
-      },
-      {
-        protocol: 'https',
-        hostname: 'images.unsplash.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'plus.unsplash.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'assets.mixkit.co',
+        protocol: 'http',
+        hostname: '**',
       },
     ],
   },

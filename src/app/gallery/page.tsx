@@ -1,6 +1,7 @@
 import React from 'react';
 import DroneGallerySection from '@/components/DroneGallerySection';
 import { getGallery } from '@/lib/supabase';
+import { DEFAULT_GALLERY } from '@/lib/defaultData';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +11,7 @@ export const metadata = {
 };
 
 export default async function GalleryPage() {
-  const gallery = await getGallery();
+  const gallery = await getGallery().catch(() => DEFAULT_GALLERY);
 
   return (
     <div className="bg-white min-h-screen py-8">

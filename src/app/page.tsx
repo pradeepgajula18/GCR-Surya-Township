@@ -11,17 +11,18 @@ import LocationSection from '@/components/LocationSection';
 import SiteVisitBookingSection from '@/components/SiteVisitBookingSection';
 import ContactSection from '@/components/ContactSection';
 import { getActiveHeroVideo, getPlots, getHighlights, getAmenities, getGallery } from '@/lib/supabase';
+import { DEFAULT_HERO_VIDEOS, DEFAULT_PLOTS, DEFAULT_HIGHLIGHTS, DEFAULT_AMENITIES, DEFAULT_GALLERY } from '@/lib/defaultData';
 
 // Revalidate periodically or dynamic SSR
 export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
   const [activeHero, plots, highlights, amenities, gallery] = await Promise.all([
-    getActiveHeroVideo(),
-    getPlots(),
-    getHighlights(),
-    getAmenities(),
-    getGallery(),
+    getActiveHeroVideo().catch(() => DEFAULT_HERO_VIDEOS[0]),
+    getPlots().catch(() => DEFAULT_PLOTS),
+    getHighlights().catch(() => DEFAULT_HIGHLIGHTS),
+    getAmenities().catch(() => DEFAULT_AMENITIES),
+    getGallery().catch(() => DEFAULT_GALLERY),
   ]);
 
   return (

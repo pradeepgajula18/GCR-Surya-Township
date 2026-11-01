@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Volume2, VolumeX, Play, Pause, Compass, ShieldCheck, ChevronDown, Calendar, ArrowRight, Phone } from 'lucide-react';
 import { HeroVideo } from '@/lib/types';
@@ -63,12 +62,10 @@ export default function HeroSection({ initialVideo }: HeroSectionProps) {
       {/* Background Video with Poster Fallback */}
       <div className="absolute inset-0 w-full h-full overflow-hidden">
         {videoData?.poster_url && !isVideoLoaded && (
-          <Image
+          <img
             src={videoData.poster_url}
             alt="GCR Surya Township Background"
-            fill
-            priority
-            className="object-cover w-full h-full transform scale-105 filter brightness-75 transition-opacity duration-1000"
+            className="absolute inset-0 w-full h-full object-cover transform scale-105 filter brightness-75 transition-opacity duration-1000"
           />
         )}
         <video

@@ -1,6 +1,7 @@
 import React from 'react';
 import PlotAvailabilityDirectory from '@/components/PlotAvailabilityDirectory';
 import { getPlots } from '@/lib/supabase';
+import { DEFAULT_PLOTS } from '@/lib/defaultData';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +11,7 @@ export const metadata = {
 };
 
 export default async function PlotsPage() {
-  const plots = await getPlots();
+  const plots = await getPlots().catch(() => DEFAULT_PLOTS);
 
   return (
     <div className="bg-white min-h-screen py-8">
